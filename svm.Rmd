@@ -1,0 +1,258 @@
+---
+title: "My Secret Codes: Logistic vs Support Vector Machine (kernlab Package)" 
+subtitle: "R for Killing Pneumonia"
+author: "Nguyen Chi Dung"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+# My Codes
+
+```{r}
+
+
+#------------------------------------
+# Perform some data pre-processing
+#------------------------------------
+
+# Clear workspace: 
+rm(list = ls())
+
+# Load some packages: 
+library(tidyverse)
+library(magrittr)
+
+# Import data: 
+hmeq <- read.csv("http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv")
+
+# Function replaces NA by mean: 
+replace_by_mean <- function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+}
+
+# A function imputes NA observations for categorical variables: 
+
+replace_na_categorical <- function(x) {
+  x %>% 
+    table() %>% 
+    as.data.frame() %>% 
+    arrange(-Freq) ->> my_df
+  
+  n_obs <- sum(my_df$Freq)
+  pop <- my_df$. %>% as.character()
+  set.seed(29)
+  x[is.na(x)] <- sample(pop, sum(is.na(x)), replace = TRUE, prob = my_df$Freq)
+  return(x)
+}
+
+# Use the two functions: 
+df <- hmeq %>% 
+  mutate_if(is.factor, as.character) %>% 
+  mutate(REASON = case_when(REASON == "" ~ NA_character_, TRUE ~ REASON), 
+         JOB = case_when(JOB == "" ~ NA_character_, TRUE ~ JOB)) %>%
+  mutate_if(is_character, as.factor) %>% 
+  mutate_if(is.numeric, replace_by_mean) %>% 
+  mutate_if(is.factor, replace_na_categorical)
+
+
+# Convert BAD to factor and scale 0 -1 data set: 
+df_for_ml <- df %>% 
+  mutate(BAD = case_when(BAD == 1 ~ "Bad", TRUE ~ "Good") %>% as.factor()) %>% 
+  mutate_if(is.numeric, function(x) {(x - min(x)) / (max(x) - min(x))})
+
+# Split data: 
+library(caret)
+set.seed(1)
+id <- createDataPartition(y = df_for_ml$BAD, p = 0.7, list = FALSE)
+df_train_ml <- df_for_ml[id, ]
+df_test_ml <- df_for_ml[-id, ]
+
+# Set conditions for training model and cross-validation: 
+
+set.seed(1)
+number <- 5
+repeats <- 2
+control <- trainControl(method = "repeatedcv", 
+                        number = number , 
+                        repeats = repeats, 
+                        classProbs = TRUE, 
+                        savePredictions = "final", 
+                        index = createResample(df_train_ml$BAD, repeats*number), 
+                        summaryFunction = multiClassSummary, 
+                        allowParallel = TRUE)
+
+#----------------------------------------------
+#  Train Logistic and Support Vector Machine
+#----------------------------------------------
+
+# Train Logistic Model: 
+
+logistic <- train(BAD ~ ., 
+                  data = df_train_ml, 
+                  method = "glm", 
+                  trControl = control)
+
+# Train SVM: 
+
+library(kernlab)
+svm <- ksvm(BAD ~., 
+            data = df_train_ml,
+            kernel = "rbfdot", 
+            C = 10, 
+            epsilon = 0.1, 
+            prob.model = TRUE, 
+            class.weights = c("Bad" = 10, "Good" = 1), 
+            cross = 10)
+
+
+#-----------------------------------
+#  Compare between the two models
+#-----------------------------------
+
+# Function calculates probabilities: 
+
+predict_prob <- function(model_selected) {
+  predict(model_selected, df_test_ml, type = "prob") %>% 
+    as.data.frame() %>% 
+    pull(Bad) %>% 
+    return()
+  }
+
+# Use this function: 
+
+pred_logistic <- predict_prob(logistic)
+pred_svm <- predict_prob(svm)
+
+# Function calculates AUC: 
+
+library(pROC) 
+
+test_auc <- function(prob) {
+  roc(df_test_ml$BAD, prob)
+  }
+
+# Use this function: 
+auc_logistic <- test_auc(pred_logistic)
+auc_svm <- test_auc(pred_svm)
+
+# Create a data frame for comparing: 
+
+df_auc <- bind_rows(data_frame(TPR = auc_logistic$sensitivities, 
+                               FPR = 1 - auc_logistic$specificities, 
+                               Model = "Logistic"), 
+                    data_frame(TPR = auc_svm$sensitivities, 
+                               FPR = 1 - auc_svm$specificities, 
+                               Model = "SVM"))
+
+# Plot ROC curves: 
+df_auc %>% 
+  ggplot(aes(FPR, TPR, color = Model)) +
+  geom_line(size = 1) +
+  theme_bw() +
+  coord_equal() +
+  geom_abline(intercept = 0, slope = 1, color = "gray37", size = 1, linetype = "dashed") + 
+  labs(x = "FPR (1 - Specificity)", 
+       y = "TPR (Sensitivity)", 
+       title = "ROC Curve and AUC: Logistic vs SVM")
+
+
+# Compare AUC: 
+lapply(list(auc_logistic, auc_svm), function(x) {x[["auc"]]})
+
+
+# Results based on test data: 
+lapply(list(logistic, svm), 
+       function(model) {confusionMatrix(predict(model, df_test_ml), df_test_ml$BAD, positive = "Bad")})
+
+```
+
+# Family of SVMs
+
+```{r}
+# Use Parallel computing: 
+library(doParallel)
+registerDoParallel(cores = detectCores() - 1)
+
+# 5 SVM models selected: 
+
+my_models <- c("svmLinearWeights2", "lssvmRadial", 
+               "svmLinearWeights", "svmRadial", "svmLinear2")
+
+# Train these ML Models: 
+library(caretEnsemble)
+set.seed(1)
+system.time(model_list1 <- caretList(BAD ~., 
+                                     data = df_train_ml,
+                                     trControl = control,
+                                     metric = "Accuracy", 
+                                     methodList = my_models))
+
+
+list_of_results <- lapply(my_models, function(x) {model_list1[[x]]$resample})
+
+# Convert to data frame: 
+total_df <- do.call("bind_rows", list_of_results)
+total_df %<>% mutate(Model = lapply(my_models, function(x) {rep(x, number*repeats)}) %>% unlist())
+
+# Average Accuracy based on 10 samples for these models: 
+total_df %>% 
+  group_by(Model) %>% 
+  summarise(avg_acc = mean(Accuracy)) %>% 
+  ungroup() %>% 
+  arrange(-avg_acc) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 1: Model Performance in decreasing order of Accuracy", 
+               col.names = c("Model", "Average Accuracy"))
+
+
+# Average Sensitivity based on 10 samples for these models: 
+
+total_df %>% 
+  group_by(Model) %>% 
+  summarise(avg_sen = mean(Sensitivity)) %>% 
+  ungroup() %>% 
+  arrange(-avg_sen) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 2: Model Performance in decreasing order of Sensitivity", 
+               col.names = c("Model", "Average Sensitivity"))
+
+
+
+theme_set(theme_minimal())
+total_df %>% 
+  select(-Resample, -F1, -Balanced_Accuracy) %>% 
+  gather(a, b, -Model) %>% 
+  ggplot(aes(Model, b, fill = Model, color = Model)) + 
+  geom_boxplot(show.legend = FALSE, alpha = 0.3) + 
+  facet_wrap(~ a, scales = "free") + 
+  coord_flip() + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm")) + 
+  labs(x = NULL, y = NULL, 
+       title = "Figure 1: A Short Comparision among SVM Models", 
+       subtitle = "Valdation Method Used: Cross-validation, 10 samples")
+
+
+
+```
+
+
+
+# References
+
+1. https://mlr.mlr-org.com/articles/tutorial/tune.html
+2. https://www.r-bloggers.com/the-5th-tribe-support-vector-machines-and-caret/ 
+3. https://topepo.github.io/caret/available-models.html

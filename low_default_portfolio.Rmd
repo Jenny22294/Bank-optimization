@@ -1,0 +1,239 @@
+---
+title: "Problem of Low Default Portfolios (LDPs) in Credit Scoring and Modelling Scorecard" 
+# subtitle: "The Serious Problem Must Be Handled"
+author: "Nguyen Chi Dung"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+### Introduction to Low Default Portfolios (LDPs)
+
+The Basel Accord provides no formal definition of a low default portfolio (LDP). The Bank
+of England earlier suggested 20 as the minimum number of required defaults to begin
+modeling (Prudential Regulation Authority 2013). Hence, if you have fewer than 20
+defaults, you definitely have a low default portfolio. The definition of a low default
+portfolio strongly depends not only on the quality, but also on the ratio between default cases and nondefault ones. 
+
+For example, suppose you have two classes: A (for example, Nondefaulter) and B (Default). Class A is 90% of your data-set and class B is the other 10%, but you are most interested in identifying instances of class B. You can reach an accuracy of 90% by simply predicting class A every time, but this provides a useless classifier for your intended use case. Instead, a properly calibrated method may achieve a lower accuracy, but would have a substantially higher true positive rate (or recall), which is really the metric you should have been optimizing for. These scenarios often occur in the context of detection, such as for abusive content online, or disease markers in medical data.
+
+The situation described above is also called "imbalance problem" or "imbalanced data" or low default portfolio in context of credit scoring and classification of loan applications. The problem of imbalanced data is recognized as one of the major problems in the field of data analysis, data mining and machine learning as most statistical models as well as  machine learning algorithms assume that data is equally distributed (or unskewed data). In the case of imbalanced data, majority classes dominate over minority classes, causing the machine learning classifiers to be more biased towards majority classes. This causes poor classification of minority classes. Classifiers may even predict all the test data as majority classes. Here are a few practical settings where class imbalance often occurs:
+
+
+- Online advertising: An advertisement is presented to a viewer which creates
+an impression. The click through rate is the number of times an ad was
+clicked on divided by the total number of impressions and tends to be very
+low (Richardson et al. 2007 cite a rate less than 2.4%).
+
+- Pharmaceutical research: High-throughput screening is an experimental
+technique where large numbers of molecules (10000s) are rapidly evaluated
+for biological activity. Usually only a few molecules show high activity;
+therefore, the frequency of interesting compounds is low.
+
+- Insurance Sector: Artis et al. (2002) investigated auto insurance damage
+claims in Spain between the years of 1993 and 1996. Of claims undergoing
+auditing, the rate of fraud was estimated to be approximately 22 %.
+
+
+### Difficulties When Handling With Low Default Portfolios
+
+Low default portfolios are quite common in a financial setting. A popular example
+is exposures to sovereigns; very few countries have gone into default in the past.
+Other examples are exposures to banks, insurance companies, and project finance,
+which is finance for large projects such as building highways or nuclear reactors.
+Exposures to large corporations and/or specialized lending are additional examples.
+When you bring new products to the market, it will also take some time before you
+have the necessary number of defaults to estimate standard credit risk models.
+
+For low default portfolios, typically you have a lack of modeling data, especially default data, which makes it very difficult to apply the advanced
+internal ratings based (IRB) approach, in which case you need to estimate the prob-
+ability of default (PD), the LGD, and the EAD. Historical average default rates are
+not appropriate since they have been calculated on only a few observations. Because
+of data scarcity, the credit risk can thus be substantially underestimated or overesti-
+mated. This is a significant problem, especially given the fact that a substantial portion
+of a bank’s assets might consist of low default portfolios.
+
+Here you can see some statements made by the Basel Committee Accord Implementation Group’s Validation Subgroup on the issue of low default portfolios (Basel
+Committee on Banking Supervision 2005) in context of modelling scorecard and loan application classification: 
+
+- “LDPs should not, by their very nature, automatically be excluded from IRB treatment.”
+
+- “...an additional set of rules or principles specifically applying to LDPs is neither necessary nor desirable.”
+
+- “...relatively sparse data might require increased reliance on alternative data sources and data enhancing tools for quantification and alternative techniques for validation.”
+
+- “...LDPs should not be considered or treated as conceptually different from other portfolios.”
+
+The Financial Services Authority (FSA), which was the predecessor of the Prudential Regulation Authority (PRA) in the United Kingdom, earlier also explicitly
+confirmed that it should be possible to include a firm’s LDPs in the IRB approach (see Financial Services Authority 2006a, Section 7).
+
+In case of rare diseases classification, a machine learning or statistical model may suffer from accuracy paradox, which makes it difficult to control false positives (or Type I Error) and false negatives (or Type II Error). This means that the patient may suffer from a rare disease but the machine learning model will not predict so since the majority of the data will be from patients without the disease. In the example of loan classification, the goal is to identify whether the loan application is default or not. Because most cases are nondefault, this causes the model to predict the default applications as valid. 
+
+
+### Select the Right Evaluation Metrics
+
+For imbalaned data sets, ppplying inappropriate evaluation metrics for evaluating model can be dangerous. Imagine our training data is the one illustrated in graph above. If accuracy is used to measure the goodness of a model, a model which classifies all testing samples into “0” will have an excellent accuracy (99.8%), but obviously, this model won’t provide any valuable information for us. In this case, other alternative evaluation metrics can be applied such as:
+
+- **AUC**: relation between true-positive rate and false positive rate.
+
+- **Precision/Specificity**: how many selected instances are relevant.
+
+- **Recall/Sensitivity**: how many relevant instances are selected.
+
+- **F1 score**: harmonic mean of precision and recall.
+
+### Remedies for Low Default Portfolios
+
+Default risk data sets often have a very skewed target class distribution where typi-
+cally only about 1 percent or even less of the transactions are defaulters. Obviously, 
+this creates problems for the analytical techniques discussed earlier since they are
+being flooded by all the nondefault observations and will thus tend toward classi-
+fying every observation as nondefault. Think about decision trees, for example: If
+they start from a data set with 99 percent/1 percent nondefault/default observations,
+then the entropy is already very low and hence it is very likely that the decision tree
+does not find any useful split and classifies all observations as nondefault, thereby
+achieving a classification accuracy of 99 percent, but essentially detecting none of
+the defaulters. It is thus recommended to increase the number of default observations or their weight, such that the analytical techniques can pay better attention to
+them. Various remedies are possible to do this and will be outlined in what follows.
+
+### Solution 1: Approach Based on Sampling Technique
+
+When there is a priori knowledge of a class imbalance, one straightforward
+method to reduce its impact on model training is to select a training set
+sample to have roughly equal event rates during the initial data collection
+(see, e.g., Artis et al. 2002). Basically, instead of having the model deal with
+the imbalance, we can attempt to balance the class frequencies. Taking this
+approach eliminates the fundamental imbalance issue that plagues model
+training. However, if the training set is sampled to be balanced, the test set
+should be sampled to be more consistent with the state of nature and should
+reflect the imbalance so that honest estimates of future performance can be
+computed.
+
+
+Two general post hoc approaches are **under-sampling** (or downsampling) and **up-sampling** (or oversampling) the data. Up-sampling is any technique that simulates or imputes additional data points to improve balance across classes, while down-sampling refers to any technique that reduces the number of samples to improve the
+balance across classes.
+
+
+More specially, the first way to increase the number of defaulters is by increasing the weight of the defaulters is by either oversampling (or up-sampling) them
+or by undersampling the nondefaulters. Here, the idea is to replicate the defaulters two or more times so as to make the
+distribution less skewed. Ling and Li (1998) provide one approach to up-sampling in which cases
+from the minority classes are sampled with replacement until each class has
+approximately the same number. For the insurance data, the training set
+contained 6466 non-policy and 411 insured customers. If we keep the original
+minority class data, adding 6055 random samples (with replacement) would
+bring the minority class equal to the majority. In doing this, some minority
+class samples may show up in the training set with a fairly high frequency
+while each sample in the majority class has a single realization in the data.
+This is very similar to the case weight approach shown in an earlier section,
+with varying weights per case.
+
+
+On the contrary, undersampling (or Down-sampling) balances the dataset by reducing the size of the abundant class. This method is used when quantity of data is sufficient. By keeping all samples in the rare class and randomly selecting an equal number of samples in the abundant class, a balanced new dataset can be retrieved for further modelling. Down-sampling selects data points from the majority class so that the ma-
+jority class is roughly the same size as the minority class(es). There are several
+approaches to down-sampling. First, a basic approach is to randomly sample
+the majority classes so that all classes have approximately the same size. Another approach would be to take a bootstrap sample across all cases such that
+the classes are balanced in the bootstrap set. The advantage of this approach
+is that the bootstrap selection can be run many times so that the estimate of variation can be obtained about the down-sampling. One implementation
+of random forests can inherently down-sample by controlling the bootstrap
+sampling process within a stratification variable. If class is used as the stratification variable, then bootstrap samples will be created that are roughly the
+same size per class. These internally down-sampled versions of the training
+set are then used to construct trees in the ensemble.
+
+
+The third approach is a "mixed combination" of the two methods descibed above. **The synthetic minority over-sampling technique (SMOTE)**, proposed by
+Chawla et al. (2002), is a data sampling procedure that uses both up-sampling
+and down-sampling, depending on the class, and has three operational parameters: the amount of up-sampling, the amount of down-sampling, and the
+number of neighbors that are used to impute new cases. To up-sample for the
+minority class, SMOTE synthesizes new cases. To do this, a data point is randomly selected from the minority class and its K-nearest neighbors (KNNs)
+are determined. Chawla et al. (2002) used five neighbors in their analyses,
+but different values can be used depending on the data. The new synthetic
+data point is a random combination of the predictors of the randomly selected data point and its neighbors. While the SMOTE algorithm adds new
+samples to the minority class via up-sampling, it also can down-sample cases
+from the majority class via random sampling in order to help balance the
+training set.
+
+
+### Solution 2: Model Tuning
+
+The simplest approach to counteracting the negative effects of class imbalance
+is to tune the model to maximize the accuracy of the minority class(es).
+For default loan prediction, tuning the model to maximize the sensitivity may
+help desensitize the training process to the high percentage of nondefault cases in the training set. 
+
+### Solution 3: Search Optimal Threshold
+
+When there are two possible outcome categories (such as in case of default loan prediction), another method for increasing the prediction accuracy of the minority class samples is to determine alternative cutoffs for the predicted probabilities which effectively changes
+the definition of a predicted event. The most straightforward approach is to
+use the ROC curve since it calculates the sensitivity and specificity across
+a continuum of cutoffs. Using this curve, an appropriate balance between
+sensitivity and specificity can be determined.
+
+### Solution 3: Adjusting Prior Probabilities
+
+Several techniques exist for determining a new cutoff. First, if there is
+a particular target that must be met for the sensitivity or specificity, this
+point can be found on the ROC curve and the corresponding cutoff can be
+determined. Another approach is to find the point on the ROC curve that is
+closest (i.e., the shortest distance) to the perfect model (with 100 % sensitivity
+and 100 % specificity), which is associated with the upper left corner of the
+plot. 
+
+Another approach for determining the cutoff uses Youden’s J index, which measures the proportion of correctly predicted samples
+for both the event and nonevent groups. This index can be computed for each
+cutoff that is used to create the ROC curve. The cutoff associated with the
+largest value of the Youden index may also show superior performance relative to the default 50 % value.
+
+Some models use prior probabilities, such as naı̈ve Bayes and discriminant
+analysis classifiers. Unless specified manually, these models typically derive
+the value of the priors from the training data. Weiss and Provost (2001a)
+suggest that priors that reflect the natural class imbalance will materially bias
+predictions to the majority class. Using more balanced priors or a balanced
+training set may help deal with a class imbalance.
+
+### Solution 4: Cost-Sensitive Training
+
+Instead of optimizing the typical performance measure, such as accuracy or
+impurity, some models can alternatively optimize a cost or loss function
+that differentially weights specific types of errors. For example, it may be appropriate to believe that misclassifying true events (false negatives) is X
+times as costly as incorrectly predicting nonevents (false positives). Incorporation of specific costs during model training may bias the model towards less frequent classes. Unlike using alternative cutoffs, unequal costs can affect the model parameters and thus have the potential to make true improvements to the classifier.
+
+### A Real-world Application: Predicting Defaulters from Mortgage Applications
+
+In this section I will only present the method of using the sampling technique for dealing with imbalanced data in practice. 
+
+
+
+
+
+
+
+### References
+
+1. Basel Committee on Banking Supervision. 2005.  “Validation of Low-Default Portfolios in the Basel II Framework.”  Basel Committee Newsletter no. 6,  September.
+
+2. Artis M, Ayuso M, Guillen M (2002). “Detection of Automobile Insurance Fraud with Discrete Choice Models and Misclassified Claims.” The Journal of Risk and Insurance, 69(3), 325–340.
+
+3. Richardson M, Dominowska E, Ragno R (2007). “Predicting Clicks: Estimating the Click–Through Rate for New Ads.” In “Proceedings of the 16 th International Conference on the World Wide Web,” pp. 521–530.
+
+4. Visa, S., & Ralescu, A. (2005, April). Issues in mining imbalanced data sets - a review paper. In Proceedings of the sixteen midwest artificial intelligence and cognitive science conference (Vol. 2005, pp. 67-73).
+
+5. Kotsiantis, S., Kanellopoulos, D., & Pintelas, P. (2006). Handling imbalanced datasets: A review. GESTS International Transactions on Computer Science and Engineering, 30(1), 25-36.
+
+6. Maloof, M. A. (2003, August). Learning when data sets are imbalanced and when costs are unequal and unknown. In ICML-2003 workshop on learning from imbalanced data sets II (Vol. 2, pp. 2-1).
+
+7. Japkowicz, N. (2003, August). Class imbalances: are we focusing on the right issue. In Workshop on Learning from Imbalanced Data Sets II (Vol. 1723, p. 63).
+
+8. Chawla, N. V., Bowyer, K. W., Hall, L. O., & Kegelmeyer, W. P. (2002). SMOTE: synthetic minority over-sampling technique. Journal of artificial intelligence research, 16, 321-357. 
+
+
+

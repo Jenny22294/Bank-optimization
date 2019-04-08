@@ -1,0 +1,989 @@
+---
+title: "Approach to Scorecard Model " 
+author: "Jenny Nguyen"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+### Introduction to Credit Scoring and Scorecard Approach
+
+Granting credit to both retail and nonretail (e.g., corporate) customers is the core
+business of a bank. In doing so, banks need to have adequate systems to decide
+to whom to grant credit. Credit scoring is a key risk assessment technique to
+analyze and quantify a potential obligor’s credit risk. Essentially, credit scoring aims
+at quantifying the likelihood that an obligor will repay the debt. The outcome of the
+credit scoring exercise is a score reflecting the creditworthiness of the obligor.
+
+Throughout the past few decades banks have
+gathered plenty of information describing the default behavior of their customers.
+Examples are historical information about a customer’s date of birth, gender, income,
+employment status, and so on. All this data has been nicely stored into huge (e.g.,
+relational) databases or data warehouses. On top of this, banks have accumulated
+lots of business experience about their credit products. As an example, many credit
+experts do a pretty good job of discriminating between low-risk and high-risk mort-
+gages using their business expertise only. It is now the aim of credit scoring to analyze
+both sources of data in more detail and come up with a statistically based decision
+model that allows scoring future credit applications and ultimately deciding which
+ones to accept and which to reject.
+
+
+For the
+historical customers, we know which ones turned out to be good payers and which
+ones turned out to be bad payers. This good/bad status is now the binary target variable Y, which we will relate to all information available at scoring time about our
+obligors. The goal of credit scoring is now to quantify this relationship as precisely
+as possible to assist credit decisions, monitoring, and management. Banks score bor-
+rowers at loan application, as well as at regular times during the term of a financial
+contract (generally loans, loan commitments, and guarantees).
+
+Once we have our credit scoring model built, we can then use it to decide whether
+the credit application should be accepted or rejected, or to derive the probability of a
+future default. To summarize, credit scoring is a key risk management tool for a bank
+to optimally manage, understand, and model the credit risk it is exposed to.
+
+### The Two Available Approaches: Judgmental Versus Statistical Scoring 
+
+There are basically two main approaches to assessing credit risk: (1) the judgmental
+approach, and (2) the statistical approach. Both rely on historical information, but the
+type of information they use is different.
+
+**The judgmental approach** is a qualitative, expert-based approach whereby, based
+on business experience and common sense, the credit expert or credit committee,
+which is a group of credit experts, will make a decision about the credit risk. Usually,
+this is done based on inspecting the five Cs of the applicant and loan:
+
+- **Character** measures the borrower’s character and integrity (e.g., reputation,
+honesty, etc.).
+
+- **Capital** measures the difference between the borrower’s assets (e.g., car,
+house, etc.) and liabilities (e.g., renting expenses, etc.).
+
+- **Collateral** measures the collateral provided in case payment problems occur
+(e.g., house, car, etc.).
+
+- **Capacity** measures the borrower’s ability to pay (e.g., job status, income,
+etc.).
+
+- **Condition** measures the borrower’s circumstances (e.g., market conditions,
+competitive pressure, seasonal character, etc.).
+
+In analyzing this information, a qualitative or subjective evaluation of the credit
+risk is made. Although the judgmental approach might seem subjective and thus
+unsophisticated at first sight, it is still quite commonly used by banks for very specific
+credit portfolios such as project finance or new credit products.
+
+With the emergence of statistical classification techniques at the beginning of
+the 1980s, banks became more and more interested in abandoning the judgmental
+approach and opting for a more formal **data-based statistical approach**. 
+
+The statistical approach is based on statistical analysis of historical data to find
+the optimal multivariate relationship between a customer’s characteristics and the
+binary good/bad target variable (Baesens et al. 2003). It is less subjective than the
+judgmental approach since it is not tied to a particular credit expert’s background
+knowledge and experience.
+
+The statistical approach aims at building scorecards, which are based on multivariate correlations between inputs (such as age, marital status, income, savings
+amount) and a target variable that reflects the risk of default. In other words, a scorecard will assign scores to each of those inputs. In our example, scores will be assigned
+to age, marital status, income, and savings amount. All those scores will then be added
+up and compared with the critical threshold, which specifies the minimum level of
+required credit quality. If the aggregated score exceeds the threshold, then credit will
+be granted. If it falls below the threshold, then credit will be withheld.
+
+In practice, hybrid approaches may be applied. In a first step, a bank may generate
+informational values by judgmental scoring. An example may be an expert opinion
+of a credit analyst on the payment ethics of a borrower (e.g., as a discrete number
+between 1 and 5). In a second step, the bank may aggregate this judgmental score
+and other hard information into a statistical score.
+
+### Advantages of Statistical Approach to Credit Scoring 
+
+Generally speaking, the statistical approach to credit scoring has many advantages
+compared with the judgmental approach. First, it is better in terms of speed and accuracy. We can now make faster decisions than we were able to do with the judgmental
+approach. This is especially relevant when working in an online environment where
+credit decisions need to be made quickly, possibly in real time. Because a credit scorecard is essentially a mathematical formula, it can be easily programmed and evaluated
+in an automated and fast way.
+
+Another advantage of having statistical credit scoring models is consistency. We
+no longer have to rely upon the experience, intuition, or common sense of one or
+multiple business experts. Now it’s just a mathematical formula, and the formula will
+always evaluate in exactly the same way if given the same set of inputs, like age,
+marital status, income, and so on.
+
+Finally, statistical credit scoring models will typically also be more powerful than
+judgmental models. This performance boost will allow a reduction of bad debt loss
+and operating costs, and consequently it will also improve portfolio management.
+
+### Logistic Regression for Developing a Scorecard Model
+
+Logistic regression is a very popular credit scoring classification technique due to its
+simplicity and good performance. Just as with linear regression, once the parameters have been estimated, the regression can be evaluated in a straightforward way,
+contributing to its operational efficiency. From an interpretability viewpoint, it can
+be easily transformed into an interpretable, user-friendly, points-based credit scorecard. 
+
+### An Important Technical Aspect of Developing Logistic Regression: Variable Selection
+
+Variable selection aims at reducing the number of variables in a model. It will make
+the model more concise and faster to evaluate. Logistic regression has a built-in procedure to perform variable selection. It is based on a statistical hypothesis test to verify
+whether the coefficient of a variable included in the model is significantly different from zero. 
+
+In credit scoring, it is very important to be aware that statistical significance is
+only one evaluation criterion to consider in doing variable selection. As mentioned
+before, interpretability is also an important criterion (Martens et al. 2007). In logistic
+regression, this can be easily evaluated by inspecting the sign of the regression coefficient. It is highly preferable that a coefficient has the same sign as anticipated by the
+credit expert; otherwise he or she will be reluctant to use the model. Coefficients can
+have unexpected signs due to multicollinearity issues, noise, or small sample effects.
+Sign restrictions can be easily enforced in a forward regression setup by preventing
+variables with the wrong sign from entering the model.
+
+Legal issues also need to be properly taken into account. For example, in the United States,
+there is the Equal Credit Opportunity Act, which states that no one is allowed to dis-
+criminate based on gender, age, ethnic origin, nationality, beliefs, and so on. These
+variables must not be included in a credit scorecard. Other countries have other regulations, and it is important to be aware of this.
+
+Currently, some methods for choosing relevant variables are: 
+
+- Based on **AIC Criterion** for selection. 
+
+- **Information Value** (IV) Criterion. 
+
+- Approaches based on **Machine Learning Algorithms**. 
+
+
+### More Details on Weight of Evidence (WOE) and Information Value (IV)
+
+Prior to building a binary classification model (e.g., Logistic Regression, etc.), a common step is to perform variable screening and exploratory data analysis. This is the step where we get to know the data and weed out variables that are either ill-conditioned or simply contain no information that will help us predict the action of interest. Note that the purpose of this step should not to be confused with that of multiple-variable selection techniques, such as stepwise regression, where the variables that go into the final model are selected. Rather, this is a precursory step designed to ensure that the approaches deployed during the final modeling phases are set up for success.
+
+The weight of evidence (WOE) and information value (IV) provide a great framework for for exploratory analysis and variable screening for binary classifiers. WOE and IV have been used extensively in the credit risk world for several decades, and the underlying theory dates back to the 1950s. 
+
+WOE and  IV are simple, yet powerful techniques to perform variable transformation and selection. These concepts have huge connection with the logistic regression modeling technique. It is widely used in credit scoring to measure the separation of good vs bad customers. In addition, the advantages of WOE transformation are:
+
+
+- Handles missing values. 
+
+- Handles outliers. 
+
+- The transformation is based on logarithmic value of distributions. This is aligned with the logistic regression output function
+No need for dummy variables. 
+
+- By using proper binning technique, it can establish monotonic relationship (either increase or decrease) between the independent and dependent variable
+
+According to Baesens et al. (2016) and Siddiqi (2012), WOE and IV analysis enable one to:
+
+- Consider each variable’s independent contribution to the outcome.
+
+- Detect linear and non-linear relationships.
+
+- Rank variables in terms of “univariate” predictive strength.
+
+- Visualize the correlations between the predictive variables and the binary outcome.
+
+- Seamlessly compare the strength of continuous and categorical variables without creating dummy variables.
+
+- Seamlessly handle missing values without imputation.
+
+- Assess the predictive power of missing values.
+
+By convention the values of the IV statistic for variable selec tion can be used as follows: 
+
+- Less than 0.02: the predictor is not useful for modeling (separating the Goods from the Bads). 
+
+- From 0.02 to 0.1: the predictor has only a weak relationship to the Goods/Bads odds ratio. 
+
+- From 0.1 to 0.3: the predictor has a medium strength relationship to the Goods/Bads odds ratio. 
+
+- From 0.3 to 0.5: the predictor has a strong relationship to the Goods/Bads odds ratio.
+
+- Higher than 0.5: we should check carrefully when selecting variables have IV higher than 0.5 because of suspicious relationship. 
+
+
+### Key Characteristics of a Useful Scorecard Model
+
+Before bringing a scorecard into production, it needs to be thoroughly evaluated.
+Depending on the exact setting and usage of the model, different aspects may need
+to be assessed during evaluation in order to ensure the model is acceptable for implementation. 
+Key characteristics of successful scorecard model are: 
+
+- **Interpretability**: A scorecard needs to be interpretable. In other words, a deeper understanding of the detected default behavior is required, for instance to validate the scorecard before it can be used. This aspect involves a certain degree of subjectivism, since interpretability may depend on the credit expert’s knowledge. The interpretability of a model depends on its format, which in turn is determined by the adopted analytical technique. Models that allow the user to understand the underlying reasons why the model signals a customer to be a defaulter are called white box models, whereas complex, incomprehensible, mathematical models are often referred to as black box models.
+
+- **Statistical accuracy**: Refers to the detection power and the correctness of the scorecard in labeling customers as defaulters. Several statistical evaluation criteria exist and may be applied to evaluate this aspect, such as the hit rate, lift curves, area under the curve (AUC), and so on. Statistical accuracy may also refer to statistical significance, meaning that the patterns that have been found in the data have to be valid and not the consequence of noise. In other words, we need to make sure that the model generalizes well and is not overfitted to the historical data set.
+
+- **Economical cost**: Developing and implementing a scorecard involves a significantcost to an organization. The total cost includes the costs togather, preprocess, and analyze the data, and the costs to putthe resulting scorecards into production. In addition, the softwarecosts as well as human and computing resources should betaken into account. Possibly also external (e.g., credit bureau)data has to be bought to enrich the available in-house data.Clearly it is important to perform a thorough cost-benefit analysisat the start of the credit scoring project, and to gain insight intothe constituent factors of the return on investment of building ascorecard system.
+
+- **Regulatory compliance**: A scorecard should be in line and compliant with all applicable regulations and legislation. In a credit scoring setting, the Basel Accords specify what information can or cannot be used and how the target (i.e., default) should be defined. Other regulations (e.g., with respect to privacy and/or discrimination) should also be respected.
+
+
+### Some Practical Aspects of Using Scorecard Model at Banks
+
+The most important usage of application scores is to decide on loan approval. The
+scores can also be used for pricing purposes. Risk-based pricing (sometimes also
+referred to as risk-adjusted pricing) sets the price or other characteristics (e.g.,
+loan term, collateral) of the loan based on the perceived risk as measured by the
+application score. A lower score will imply a higher interest rate and vice versa. 
+
+
+### R Codes for Developing Scorecard Model using Logistic Regression
+
+In this section the author will present R Codes for developing Scorecard Model with a focus on: 
+
+- Problem of processing data (missing data). 
+
+- Variable Selection based on: (1) BIC Criterion, and (2) IV Value. 
+
+- Finding optimal threshold for classifying and selecting by using simulations. 
+
+- Comparing results from alternative approaches. 
+
+- Deploying model selected in practice by using a R function that takes inputs and returns final score outputs. 
+
+Data used in this post can be download from: http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv. 
+
+```{r}
+#=================================
+#  State 1: Data Pre-processing
+#=================================
+
+# Load some packages for data manipulation: 
+library(tidyverse)
+library(magrittr)
+
+# Clear workspace: 
+rm(list = ls())
+
+# Import data: 
+hmeq <- read.csv("http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv")
+
+# Function for detecting NA observations: 
+na_rate <- function(x) {x %>% is.na() %>% sum() / length(x)}
+sapply(hmeq, na_rate) %>% round(2)
+
+```
+
+```{r}
+
+# Function replaces NA by mean: 
+replace_by_mean <- function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+}
+
+# A function imputes NA observations for categorical variables: 
+
+replace_na_categorical <- function(x) {
+  x %>% 
+    table() %>% 
+    as.data.frame() %>% 
+    arrange(-Freq) ->> my_df
+  
+  n_obs <- sum(my_df$Freq)
+  pop <- my_df$. %>% as.character()
+  set.seed(29)
+  x[is.na(x)] <- sample(pop, sum(is.na(x)), replace = TRUE, prob = my_df$Freq)
+  return(x)
+}
+
+# Use the two functions: 
+df <- hmeq %>% 
+  mutate_if(is.factor, as.character) %>% 
+  mutate(REASON = case_when(REASON == "" ~ NA_character_, TRUE ~ REASON), 
+         JOB = case_when(JOB == "" ~ NA_character_, TRUE ~ JOB)) %>%
+  mutate_if(is_character, as.factor) %>% 
+  mutate_if(is.numeric, replace_by_mean) %>% 
+  mutate_if(is.factor, replace_na_categorical)
+
+# Split our data: 
+
+df_train <- df %>% 
+  group_by(BAD) %>% 
+  sample_frac(0.5) %>% 
+  ungroup() # Use 50% data set for training model. 
+ 
+df_test <- dplyr::setdiff(df, df_train) # Use 50% data set for validation. 
+
+#===============================================================================
+#  Scenario 1: Scorecard model with variables selected based on AIC Criterion 
+#===============================================================================
+
+# Load purrr package for looping: 
+library(purrr)
+
+# Function lists all combinations of variables: 
+
+all_combinations <- function(your_predictors) {
+
+  n <- length(your_predictors)
+  map(1:n, function(x) {combn(variables, x)}) %>%  
+    map(as.data.frame) -> k
+  
+  all_vec <- c()
+  
+  for (i in 1:n) {
+    df <- k[[i]]
+    n_col <- ncol(df)
+    
+    for (j in 1:n_col) {
+      my_vec <- df[, j] %>% as.character() %>% list()
+      all_vec <- c(all_vec, my_vec)
+    }
+  }
+  
+  return(all_vec)
+  
+}
+
+
+# All potential variables can be used for modelling Logistic Regression:  
+variables <- df %>% select(-BAD) %>% names()
+
+# AICs for all models. Note that there will be 4095 Logistic Models thus 
+# training all models may be a time-consuming process: 
+
+system.time(
+  all_combinations(variables) %>% 
+  map(function(x) {as.formula(paste("BAD ~", paste(x, collapse = " + ")))}) %>% 
+  map(function(formular) {glm(formular, family = binomial, data = df_train)}) %>% 
+  map_dbl("aic") -> aic_values
+  )
+```
+
+```{r}
+
+
+#  The conbination of Predictors that results min AIC: 
+
+all_combination_of_vars <- variables %>% all_combinations()
+predictors_selected <- all_combination_of_vars[[which.min(aic_values)]] 
+
+# Thus there are 10 predictors selected based on AIC criterion:  
+predictors_selected
+```
+
+```{r}
+
+
+# Data frame for training Logistic Regression: 
+df_train_aic <- df_train %>% select(predictors_selected, "BAD")
+
+#-------------------------------------------------------------------------------
+#  Develop a scorecard Model for variables based on the results from WOE and IV 
+#-------------------------------------------------------------------------------
+library(scorecard)
+
+# Generates optimal binning for numerical, factor and categorical variables: 
+bins_var <- woebin(df_train_aic, y = "BAD", no_cores = 20, positive = "BAD|1")
+
+# Creates a data frame of binned variables for Logistic Regression: 
+df_train_woe <- woebin_ply(df_train_aic, bins_var)
+
+# Logistic Regression:
+my_logistic <- glm(BAD ~ ., family = binomial, data = df_train_woe)
+
+# Show results: 
+my_logistic %>% summary()
+
+```
+
+
+```{r}
+
+
+# Calculate scorecard scores for variables based on the results from woebin and glm: 
+my_card <- scorecard(bins_var, my_logistic, points0 = 600, odds0 = 1/19, pdo = 50)
+
+# Show Results: 
+
+library(stringr)
+do.call("bind_rows", my_card) %>% 
+  slice(-1) %>% 
+  select(-breaks, -is_special_values, -count, -count_distr, -good, -bad, -badprob) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  mutate(bin = bin %>% 
+           str_replace_all("\\[", "From ") %>% 
+           str_replace_all("\\,", " to ") %>% 
+           str_replace_all("\\)", "")) -> iv_for_predictors_point
+
+iv_for_predictors_point %>% 
+  knitr::kable(col.names = c("Predictor", "Group", "WOE", "Scorecard", "Bin IV", "Total IV"))
+
+
+```
+
+```{r}
+
+
+
+# Information Values for predictors: 
+
+iv_for_predictors_point %>% 
+  group_by(variable) %>% 
+  summarise(iv_var = mean(total_iv)) %>% 
+  ungroup() %>% 
+  arrange(iv_var) %>% 
+  mutate(variable = factor(variable, levels = variable)) -> iv_values
+
+
+theme_set(theme_minimal())
+iv_values %>% 
+  ggplot(aes(variable, iv_var)) + 
+  geom_col(fill = "#377eb8") + 
+  coord_flip() + 
+  geom_col(data = iv_values %>% filter(iv_var < 0.1), aes(variable, iv_var), fill = "grey60") + 
+  geom_text(data = iv_values %>% filter(iv_var < 0.1), aes(label = round(iv_var, 3)), 
+            hjust = -0.1, size = 5, color = "grey40") + 
+  geom_text(data = iv_values %>% filter(iv_var >= 0.1), aes(label = round(iv_var, 3)), 
+            hjust = -.1, size = 5, color = "#377eb8") + 
+  labs(title = "Figure 1: Information Value (IV) for Variables", 
+       x = NULL, y = "Information Value (IV)") + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 2)) + 
+  theme(panel.grid.major.y = element_blank()) + 
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm"))
+
+```
+
+```{r}
+
+
+# Scorecard point for all observations from train data set: 
+my_points_train <- scorecard_ply(df_train_aic, my_card, only_total_score = FALSE, print_step = 0) %>% as.data.frame()
+
+# Some statistics scorecard by group: 
+df_scored_train <- df_train_aic %>% 
+  mutate(SCORE = my_points_train$score) %>% 
+  mutate(BAD = case_when(BAD == 1 ~ "Default", TRUE ~ "NonDefault")) 
+
+df_scored_train %>% 
+  group_by(BAD) %>% 
+  summarise_each(funs(min, max, median, mean, n()), SCORE) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 0)}) %>% 
+  knitr::kable(caption = "Table 1: Scorecad Points by Group for Train Data")
+
+```
+
+```{r}
+
+
+df_scored_train %>% 
+  group_by(BAD) %>% 
+  summarise(tb = mean(SCORE)) %>% 
+  ungroup() -> mean_score_train
+
+df_scored_train %>% 
+  ggplot(aes(SCORE, color = BAD, fill = BAD)) + 
+  geom_density(alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean_score_train$tb[1]), linetype = "dashed", color = "red") + 
+  geom_vline(aes(xintercept = mean_score_train$tb[2]), linetype = "dashed", color = "blue") + 
+  geom_text(aes(x = 400 - 15, y = 0.0042, label = mean_score_train$tb[1] %>% round(0)), color = "red", size = 4) + 
+  geom_text(aes(x = 565, y = 0.0042, label = mean_score_train$tb[2] %>% round(0)), color = "blue", size = 4) + 
+  theme(legend.title = element_blank()) + 
+  theme(legend.position = c(0.2, 0.8)) + 
+  labs(x = NULL, y = NULL, title = "Figure 2: Scorecard Distribution by two Credit Groups for Train Data", 
+       subtitle = "The scorecard point is a numeric expression measuring creditworthiness. Commercial Banks\nusually utilize it as a method to support the decision-making about credit applications.")
+
+```
+
+```{r}
+
+
+# Scorecard Points for test data set: 
+
+df_test_aic <- df_test %>% select(predictors_selected, "BAD")
+
+my_points_test <- scorecard_ply(df_test_aic, my_card, print_step = 0, 
+                                only_total_score = FALSE) %>% as.data.frame()
+
+
+df_scored_test <- df_test_aic %>% 
+  mutate(SCORE = my_points_test$score) %>% 
+  mutate(BAD = case_when(BAD == 1 ~ "Default", TRUE ~ "NonDefault")) 
+
+df_scored_test %>% 
+  group_by(BAD) %>% 
+  summarise_each(funs(min, max, median, mean, n()), SCORE) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 0)}) %>% 
+  knitr::kable(caption = "Table 2: Scorecad Points by Group for Test Data")
+
+
+```
+
+```{r}
+
+
+
+df_scored_test %>% 
+  group_by(BAD) %>% 
+  summarise(tb = mean(SCORE)) %>% 
+  ungroup() -> mean_score_test
+
+df_scored_test %>% 
+  ggplot(aes(SCORE, color = BAD, fill = BAD)) + 
+  geom_density(alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean_score_test$tb[1]), linetype = "dashed", color = "red") + 
+  geom_vline(aes(xintercept = mean_score_test$tb[2]), linetype = "dashed", color = "blue") + 
+  geom_text(aes(x = 412, y = 0.0042, label = mean_score_test$tb[1] %>% round(0)), color = "red", size = 4) + 
+  geom_text(aes(x = 570, y = 0.0042, label = mean_score_test$tb[2] %>% round(0)), color = "blue", size = 4) + 
+  theme(legend.title = element_blank()) + 
+  theme(legend.position = c(0.2, 0.8)) + 
+  labs(x = NULL, y = NULL, title = "Figure 3: Scorecard Distribution by two Credit Groups for Test Data", 
+       subtitle = "The scorecard point is a numeric expression measuring creditworthiness. Commercial Banks\nusually utilize it as a method to support the decision-making about credit applications.")
+```
+
+### Some Criteria for Model Evaluation in Context of Cresit Scoring
+
+It is impossible to use a scoring model effectively without knowing how accurate it is. First, one needs to select the best model according to some criteria for evaluating model performance. The methodology of credit scoring models
+and some measures of their quality have been discussed in surveys conducted by
+Hand and Henley (1997), Thomas (2000), and Crook at al. (2007). However, until just
+ten years ago, the general literature devoted to the issue of credit scoring was not substantial. Fortunately, the situation has improved in the last decade with the publication of works by Anderson (2007), Crook et al. (2007), Siddiqi (2006), Thomas et al. (2002), and Thomas (2009), all of which address the topic of credit scoring. The most used criteria in context of credit scoring are: 
+
+- Gain or **lift** is a measure of the effectiveness of a classification model calculated as the ratio between the results obtained with and without the model. Gain and lift charts are visual aids for evaluating performance of classification models. However, in contrast to the confusion matrix that evaluates models on the whole population gain or lift chart evaluates model performance in a portion of the population. 
+
+- K-S or **Kolmogorov-Smirnov chart** measures performance of classification models. More accurately, K-S is a measure of the degree of separation between the positive and negative distributions. The K-S is 100 if the scores partition the population into two separate groups in which one group contains all the positives and the other all the negatives. On the other hand, If the model cannot differentiate between positives and negatives, then it is as if the model selects cases randomly from the population. The K-S would be 0. In most classification models the K-S will fall between 0 and 100, and that the higher the value the better the model is at separating the positive from negative cases.
+
+- **Area under ROC curve** is often used as a measure of quality of the classification models. A random classifier has an area under the curve of 0.5, while AUC for a perfect classifier is equal to 1. In practice, most of the classification models have an AUC between 0.5 and 1.
+
+- **Precision** and **Recall** (for more detail: https://en.wikipedia.org/wiki/Precision_and_recall). 
+
+Model performance criteria will be presented in the following code chunk. 
+
+
+```{r}
+# Convert to binned data frame for test data: 
+df_test_woe <- woebin_ply(df_test_aic, bins_var)
+
+# Caculate probabiliy of default (PD) for observations belonging test data: 
+test_pred <- predict(my_logistic, df_test_woe, type = "response")
+
+# Model Performance for test data: 
+perf_eva(df_test_aic$BAD, test_pred, 
+         type = c("ks", "lift", "roc", "pr"), 
+         title = "Test Data")
+```
+
+### Pobabilities of Default
+
+Scorecards based on our model provide scores. A score is a measure that allows lenders
+to rank customers from high risk (low score) to low risk (high score) and as such
+provides a relative measure of credit risk. Scores are unlimited and can be measured
+within any range; they can even be negative. A score is not the same as a probability.
+A probability also allows us to rank, but on top of that, since it is limited between
+0 and 1, it also gives an absolute interpretation of credit risk. Hence, probabilities
+provide more information than scores do. For application scoring, one does not need
+well-calibrated probabilities of default. However, for other application areas such as
+regulatory capital calculation in a Basel setting, as we will discuss later, calibrated
+default probabilities are needed (Van Gestel and Baesens 2009).
+
+At this state we can evaluate probabilities of default (PD) for all observations by group as follows: 
+
+```{r}
+
+# Cteate a data frame of PD: 
+df_test_aic %>% 
+  mutate(prob_default = test_pred, 
+         BAD = case_when(BAD == 1 ~ "Default", TRUE ~ "NonDefault")) -> prob_default_df 
+
+# Show some statistics: 
+
+prob_default_df %>% 
+  group_by(BAD) %>% 
+  summarise_each(funs(min, max, median, mean, n()), prob_default) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 4)}) %>% 
+  knitr::kable(caption = "Table 3: Probabilities of Default by Group for Test Data")
+```
+
+```{r}
+
+
+
+# PD Distribution by group: 
+
+prob_default_df %>% 
+  group_by(BAD) %>% 
+  summarise(tb = mean(prob_default)) %>% 
+  ungroup() -> mean_prob_test
+
+prob_default_df %>% 
+  ggplot(aes(prob_default, color = BAD, fill = BAD)) + 
+  geom_density(alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean_prob_test$tb[1]), linetype = "dashed", color = "red") + 
+  geom_vline(aes(xintercept = mean_prob_test$tb[2]), linetype = "dashed", color = "blue") + 
+  geom_text(aes(x = 0.44, y = 9.2, label = mean_prob_test$tb[1] %>% round(4)), color = "red", size = 4) + 
+  geom_text(aes(x = 0.1 + 0.07, y = 9.2, label = mean_prob_test$tb[2] %>% round(4)), color = "blue", size = 4) + 
+  theme(legend.title = element_blank()) + 
+  theme(legend.position = c(0.88, 0.8)) + 
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm")) + 
+  labs(x = NULL, y = NULL, title = "Figure 4: PD Distribution by two Credit Groups for Test Data") 
+
+```
+
+
+### Search Optimal Threshold of Probability that maximize Accuracy
+
+Accuracy criterion is widely used for evaluating model performance in context of credit scoring. However this measure is totally affected by threshold of probability that we select for classifier. In this section I will present approach to finding optimal threshold that maximizes accuracy by using simulation method. 
+
+```{r}
+
+# Function calculates model criteria for Logistic Classifier: 
+library(caret)
+
+eval_fun <- function(thre) {
+  lapply(1:30, function(x) {
+    
+    set.seed(x)
+    id <- createDataPartition(y = df_test_aic$BAD, p = 1000 / nrow(df_test_aic), list = FALSE)
+    
+    test_df_mini <- df_test_aic[id, ]
+    
+    df_test_woe_mini <- woebin_ply(test_df_mini, bins_var)
+    test_pred <- predict(my_logistic, df_test_woe_mini, type = "response")
+    
+    predict <- case_when(test_pred >= thre ~ "Default", 
+                        test_pred < thre ~ "NonDefault")
+    
+    cm <- confusionMatrix(case_when(test_df_mini$BAD == 1 ~ "Default", TRUE ~ "NonDefault") %>% as.factor(), 
+                          predict %>% as.factor())
+    
+    bg_gg <- cm$table %>% 
+      as.vector() %>% 
+      matrix(ncol = 4) %>% 
+      as.data.frame()
+    
+    names(bg_gg) <- c("BB", "GB", "BG", "GG")
+    results <- c(cm$overall, cm$byClass) 
+    
+    name_results <- results %>% 
+      as.data.frame() %>% 
+      row.names()
+    
+    results %>% 
+      as.vector() %>% 
+      matrix(ncol = 18) %>% 
+      as.data.frame() -> all_df
+    
+    names(all_df) <- name_results
+    all_df <- bind_cols(all_df, bg_gg)
+    return(all_df)
+  })
+}
+
+# Use above function (may be a time-consuming process): 
+system.time(compared_df <- lapply(seq(0.1, 0.9, by = 0.05), eval_fun))
+
+```
+
+```{r}
+
+
+# Convert to data frame: 
+compared_df <- do.call("bind_rows", compared_df) 
+
+compared_df %<>% 
+  mutate(Threshold = lapply(seq(0.1, 0.9, by = 0.05), function(x) {rep(x, 30)}) %>% unlist())
+
+names(compared_df) <- names(compared_df) %>% str_replace_all(" ", "")
+
+# Average Accuracy vs Threshold: 
+compared_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), Accuracy) -> acc
+
+# Threshold maximize Accuracy: 
+acc %>% slice(which.max(.$Accuracy))
+
+```
+```{r}
+
+
+# Threshold maximize Accuracy for Default cases: 
+compared_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), NegPredValue) -> nondefault_acc
+
+nondefault_acc %>% slice(which.max(.$NegPredValue))
+
+
+```
+
+```{r}
+
+
+# Threshold maximize Accuracy for NonDefault cases: 
+
+compared_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), PosPredValue) -> default_acc
+
+default_acc %>% slice(which.max(.$PosPredValue))
+
+```
+
+```{r}
+
+
+# Visualize our results: 
+compared_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), Accuracy, NegPredValue, PosPredValue, Kappa, Sensitivity, Specificity) %>% 
+  gather(Metric, b, -Threshold) %>% 
+  ggplot(aes(Threshold, b, color = Metric)) + 
+  geom_line() + 
+  geom_point(size = 3) + 
+  scale_y_continuous(labels = scales::percent) + 
+  scale_x_continuous(breaks = seq(0.1, 0.9, by = 0.05)) + 
+  theme(panel.grid.minor.x = element_blank()) + 
+  labs(y = "Accuracy Rate", 
+       title = "Figure 5: Variation of Logistic Classifier's Metrics by Threshold of Probability", 
+       subtitle = "Data Used: Delinquency Data for 5,960 Home Loans", 
+       caption = "Data Source: http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv")
+
+```
+
+These results reveals that optimal threshold of probability maximizing Accuracy is 0.5. However note that Accuracy should not be the most vital goal for for-profit businesses. 
+
+### Search Optimal Threshold of Score that maximize Accuracy
+
+In case of using scorecard points for decision-making (accept or reject an credit application) we must determine optimal threshold (or cutoff) of score, which represents the minimum score required by banks for accepting. In this section I will present approach to finding optimal threshold of score.
+
+```{r}
+
+# Function calculates model measures with input is a score selected: 
+
+validate_score <- function(score_selected) {
+  lapply(1:30, function(x) {
+    
+    set.seed(x)
+    id <- createDataPartition(y = df_test_aic$BAD, p = 1000 / nrow(df_test_aic), list = FALSE)
+  
+    test_df_mini <- df_test_aic[id, ]
+    
+    my_points_test_mini <- scorecard_ply(test_df_mini, my_card, only_total_score = FALSE, print_step = 0) %>% 
+      as.data.frame() %>% 
+      pull(score)
+    
+    du_bao <- case_when(my_points_test_mini >= score_selected ~ "Default", 
+                        my_points_test_mini < score_selected ~ "NonDefault")
+    
+    cm <- confusionMatrix(case_when(test_df_mini$BAD == 1 ~ "Default", TRUE ~ "NonDefault") %>% as.factor(), 
+                          du_bao %>% as.factor())
+    
+    bg_gg <- cm$table %>% 
+      as.vector() %>% 
+      matrix(ncol = 4) %>% 
+      as.data.frame()
+    
+    names(bg_gg) <- c("BB", "GB", "BG", "GG")
+    results <- c(cm$overall, cm$byClass) 
+    
+    name_results <- results %>% 
+      as.data.frame() %>% 
+      row.names()
+    
+    results %>% 
+      as.vector() %>% 
+      matrix(ncol = 18) %>% 
+      as.data.frame() -> all_df
+    
+    names(all_df) <- name_results
+    all_df <- bind_cols(all_df, bg_gg)
+    return(all_df)
+  })
+}
+
+# Use the function: 
+system.time(compared_df_score <- lapply(seq(500, 700, by = 10), validate_score))
+compared_df_score <- do.call("bind_rows", compared_df_score)
+
+compared_df_score %<>% 
+  mutate(Threshold = lapply(seq(500, 700, by = 10), function(x) {rep(x, 30)}) %>% unlist())
+
+names(compared_df_score) <- names(compared_df_score) %>% str_replace_all(" ", "")
+compared_df_score$Accuracy %>% summary()
+
+compared_df_score %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), Accuracy, NegPredValue, PosPredValue, Kappa, Sensitivity, Specificity) %>% 
+  gather(Metric, b, -Threshold) %>% 
+  ggplot(aes(Threshold, b, color = Metric)) + 
+  geom_line() + 
+  geom_point(size = 3) + 
+  scale_y_continuous(labels = scales::percent) + 
+  scale_x_continuous(breaks = seq(500, 700, by = 50)) + 
+  theme(panel.grid.minor.x = element_blank()) + 
+  labs(y = "Accuracy Rate", 
+       title = "Figure 6: Variation of Logistic Classifier's Metrics by Threshold of Scorecard", 
+       subtitle = "Data Used: Delinquency Data for 5,960 Home Loans", 
+       caption = "Data Source: http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv")
+
+```
+
+
+### Variable Selection using IV Criterion
+
+Instead of using AIC as a criterion for variable selectin we can use IV as follows: 
+
+
+```{r}
+#===============================================================================
+#  Scenario 2: Scorecard model with variables selected based on IV Criterion 
+#===============================================================================
+
+# Calculate information values: 
+info_values <- iv(df_train, y = "BAD", positive = "BAD|1")
+
+# Show IVs by graph: 
+info_values %>% 
+  arrange(info_value) %>% 
+  mutate(info_value = round(info_value, 3), variable = factor(variable, levels = variable)) %>% 
+  ggplot(aes(variable, info_value)) + 
+  geom_col(fill = "#377eb8") + 
+  coord_flip() + 
+  geom_text(aes(label = info_value), hjust = -.1, size = 5, color = "#377eb8") + 
+  labs(title = "Figure 7: Information Value (IV) for All Variables", 
+       x = NULL, y = "Information Value (IV)") + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 0.9)) + 
+  theme(panel.grid.major.y = element_blank()) + 
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm")) 
+```
+
+```{r}
+
+
+
+# We only use variables with IV >= 0.1 for training Logistic Regression: 
+variables_selected_iv <- info_values %>% 
+  filter(info_value >= 0.1) %>% 
+  pull(1)
+
+# Data frame for training Logistic Regression: 
+
+df_train_iv <- df_train %>% select(variables_selected_iv, "BAD")
+
+# Bin our data set that will be used later for Logistic Regression: 
+bins_var <- woebin(df_train_iv, y = "BAD", no_cores = 4, positive = "BAD|1")
+
+# Creates a data frame of binned variables for Logistic Regression: 
+df_train_woe2 <- woebin_ply(df_train_iv, bins_var)
+
+# Logistic Regression:
+my_logistic2 <- glm(BAD ~ ., family = binomial, data = df_train_woe2)
+
+# Show results: 
+my_logistic2 %>% summary()
+
+# Convert to binned data frame for test data: 
+df_test_iv <- df_test %>% select(names(df_train_iv))
+df_test_woe2 <- woebin_ply(df_test_iv, bins_var)
+
+# Caculate probabiliy of default (PD) for observations belonging test data: 
+test_pred2 <- predict(my_logistic2, df_test_woe2, type = "response")
+
+# Model Performance for test data: 
+perf_eva(df_test_iv$BAD, test_pred2, 
+         type = c("ks", "lift", "roc", "pr"), 
+         title = "Test Data")
+
+```
+
+We can also calculate scorecard points for all credit applications by using this scorecard model as follows: 
+
+```{r}
+
+# Calculate scorecard scores for variables based on the results from woebin and glm: 
+my_card2 <- scorecard(bins_var, my_logistic2, points0 = 600, odds0 = 1/19, pdo = 50)
+
+# Scorecard Points for test data set: 
+my_points_test <- scorecard_ply(df_test_iv, my_card2, print_step = 0, 
+                                only_total_score = FALSE) %>% as.data.frame()
+
+df_scored_test <- df_test_iv %>% 
+  mutate(SCORE = my_points_test$score) %>% 
+  mutate(BAD = case_when(BAD == 1 ~ "Default", TRUE ~ "NonDefault")) 
+
+df_scored_test %>% 
+  group_by(BAD) %>% 
+  summarise_each(funs(min, max, median, mean, n()), SCORE) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 0)}) %>% 
+  knitr::kable(caption = "Table 4: Scorecad Points by Group for Test Data (Selection based on IV)")
+
+df_scored_test %>% 
+  group_by(BAD) %>% 
+  summarise(tb = mean(SCORE)) %>% 
+  ungroup() -> mean_score_test
+
+df_scored_test %>% 
+  ggplot(aes(SCORE, color = BAD, fill = BAD)) + 
+  geom_density(alpha = 0.3) + 
+  geom_vline(aes(xintercept = mean_score_test$tb[1]), linetype = "dashed", color = "red") + 
+  geom_vline(aes(xintercept = mean_score_test$tb[2]), linetype = "dashed", color = "blue") + 
+  geom_text(aes(x = 450 - 10, y = 0.005, label = mean_score_test$tb[1] %>% round(0)), color = "red", size = 4) + 
+  geom_text(aes(x = 530 + 20, y = 0.005, label = mean_score_test$tb[2] %>% round(0)), color = "blue", size = 4) + 
+  theme(legend.title = element_blank()) + 
+  theme(legend.position = c(0.2, 0.8)) + 
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm")) + 
+  labs(x = NULL, y = NULL, title = "Figure 7: Scorecard Distribution by two Credit Groups for Test Data", 
+       subtitle = "Variable Selection Used: IV Criterion")
+```
+
+Results show that this approach to variable selection results model performance is poor compared to the previous one (selection based on AIC). 
+
+
+### Caution: Be Aware Of Limitations
+
+Although credit scoring systems are being implemented and used by most banks
+nowadays, they do face a number of limitations. A first limitation concerns the data
+that is used to estimate credit scoring models. Since data is the major, and in most
+cases the only, ingredient to build these models, its quality and predictive ability is
+key to the models’ success.
+
+The quality of the data refers, for example, to the num-
+ber of missing values and outliers, and to the recency and representativity of the
+data. Data quality issues can be difficult to detect without specific domain knowledge, but have an important impact on the scorecard development and resulting risk
+measures. The availability of high-quality data is a very important prerequisite for
+building good credit scoring models. However, not only does the data need to be of
+high quality, but it should be predictive as well, in the sense that the captured characteristics are related to the customer’s likelihood of defaulting.
+
+In addition, before constructing a scorecard model, we need to thoroughly reflect on why a customer defaults and which
+characteristics could potentially be related to this. Customers may default because of
+unknown reasons or information not available to the financial institution, thereby
+posing another limitation to the performance of credit scoring models. The statistical
+techniques used in developing credit scoring models typically assume a data set of
+sufficient size containing enough defaults. This may not always be the case for specific types of portfolios where only limited data is available, or only a low number of
+defaults is observed. For these types of portfolios, one may have to rely on alternative
+risk assessment methods using, for example, expert judgment based on the five Cs,
+as discussed earlier.
+
+### Thank you message
+
+I woould like to thank Mr.Dung for his praiseworthy work. His posts and references helped me improve my skills and knowledge a lot that I can not express by these simple words.
+
+He's defenitely my teacher!
+
+### References
+
+1. Martens, D., B. Baesens, T. Van Gestel, and J. Vanthienen. 2007. “Comprehensible Credit Scoring Models Using Rule Extraction from Support Vector Machines.” European Journal of Operational Research 183:1466–1476.
+
+2. Baesens, B., Roesch, D., & Scheule, H. (2016). Credit risk analytics: Measurement techniques, applications, and examples in SAS. John Wiley & Sons.
+
+3. Siddiqi, N. (2012). Credit risk scorecards: developing and implementing intelligent credit scoring. John Wiley & Sons.
+
+4. Anderson R (2007): The Credit Scoring Toolkit: Theory and Practice for Retail Credit Risk Management and Decision Automation. Oxford, Oxford University Press. 
+
+5. Hand DJ, Henley WE (1997): Statistical Classification Methods in Consumer Credit Scoring:
+a review. Journal. of the Royal Statistical Society, Series A, 160(3):523–541. 
+
+6. Thomas LC (2000): A survey of credit and behavioural scoring: forecasting financial risk of lending to consumers. International Journal of Forecasting, 16(2):149–172 .
+
+7. Thomas LC (2009): Consumer Credit Models: Pricing, Profit, and Portfolio. Oxford, Oxford University Press. 
+
+8. Crook JN, Edelman DB, Thomas LC (2007): Recent developments in consumer credit risk assessment. European Journal of Operational Research, 183(3):1447–1465. 
+
+9. Van Gestel, T., B. Baesens, P. Van Dijcke, J. Suykens, J. Garcia, and T. Alderweireld. 2005. “Linear and Nonlinear Credit Scoring by Combining Logistic Regression and Support Vector Machines.” Journal of Credit Risk 1, no. 4.
+
+10. https://github.com/chidungkr

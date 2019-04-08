@@ -1,0 +1,370 @@
+---
+title: "Detecting Financial Fraud Using Machine Learning: War Against Imbalanced Data" 
+subtitle: "R for Pleasure"
+author: "Nguyen Chi Dung"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+# Demand for Detecting Financial Fraud
+
+Fraud detection is one of the top priorities for banks and financial institutions, which can be addressed using machine learning. According to a report published by Nilson, in 2017 the worldwide losses in card fraud related cases reached 22.8 billion dollars. The problem is forecasted to get worse in the following years, by 2021, the card fraud bill is expected to be 32.96 billion dollars. 
+
+For years, fraudsters would simply take numbers from credit or debit cards and print them onto blank plastic cards to use at brick-and-mortar stores. But in 2015, Visa and Mastercard mandated that banks and merchants introduce EMV - chip card technology, which made it possible for merchants to start requesting a PIN for each transaction. Nevertheless, experts predict online credit card fraud to soar to a whopping $32 billion in 2020.
+
+In addition to the implementation of chip card technology, companies have been investing massive amounts in other technologies for detecting fraudulent transactions.
+
+# Machine Learning Approach to Detecting Fraud Transaction
+
+In Machine Learning, problems like fraud detection are usually framed as classification problems —predicting a discrete class label output given a data observation. Examples of classification problems that can be thought of are Spam Detectors, Recommender Systems and Loan Default Prediction.
+
+# Challenge when Using Machine Learning Approach to Detecting Fraud Transaction
+
+The main challenge when it comes to modeling fraud detection as a classification problem comes from the fact that in real world data, the majority of transactions is not fraudulent. Investment in technology for fraud detection has increased over the years so this shouldn’t be a surprise, but this brings us a problem: imbalanced data.
+
+An example is data set provided by researchers from the **Université Libre de Bruxelles in Belgium** (for the full work, you can read their paper: Andrea Dal Pozzolo, Olivier Caelen, Reid A. Johnson and Gianluca Bontempi, Calibrating Probability with Undersampling for Unbalanced Classification. In Symposium on Computational Intelligence and Data Mining (CIDM), IEEE, 2015). This data set can be download from https://www.kaggle.com/mlg-ulb/creditcardfraud. 
+
+The datasets contain transactions made by credit cards in two days in September 2013 by European cardholders. We have 492 frauds out of 284,807 transactions. In this example, fraud transactions account for 0.172% of all transactions.
+
+# A Simple Solution: Searching Optimal Threshold
+
+In this section I will present a simple solution for handling Imbalanced Data when developing a approach for detecting fraud transactions. 
+
+
+```{r}
+# Load packages for data manipulation: 
+rm(list = ls())
+library(tidyverse)
+library(magrittr)
+
+# Load data (downloaded from https://www.kaggle.com/mlg-ulb/creditcardfraud): 
+creditcard <- read_csv("C:/creditcardfraud/creditcard.csv")
+
+# Remove Time Column and convert to factor: 
+creditcard %<>% 
+  select(-Time) %>% 
+  mutate(Class = case_when(Class == 1 ~ "Fraud", TRUE ~ "NonFraud") %>% as.factor())
+
+theme_set(theme_minimal())
+creditcard %>% 
+  filter(Amount < 200) %>% 
+  ggplot(aes(Class, Amount, fill = Class, color = Class)) + 
+  geom_violin(alpha = 0.2)
+
+
+# Scale 0-1 for numeric culumns: 
+creditcard %<>% mutate_if(is.numeric, function(x) {(x - min(x)) / (max(x) - min(x))})
+```
+
+From above plot we can see that fraudulent transactions are anomalously centered around 100. This might be part of the fraudster's strategy, instead of having large amounts at regular times, they hide small amounts more or less uniformly in time.
+
+```{r}
+# Activate h2o package for deep learning: 
+library(h2o)
+h2o.init(nthreads = -1, max_mem_size = "16g")
+h2o.no_progress()
+
+# Convert to H2o Frame: 
+creditcard_hf <- as.h2o(creditcard)
+
+# Split data sets: 
+splits <- h2o.splitFrame(creditcard_hf, ratios = c(0.5), seed = 29)
+train <- splits[[1]]
+test <- splits[[2]]
+test_for_cross <- as.data.frame(test)
+
+# Identify inputput and output: 
+y <- "Class"
+x <- setdiff(names(train), y)
+```
+
+R codes for searching optimal threshold: 
+
+```{r}
+
+pure_nn <- h2o.deeplearning(x = x, y = y, 
+                            training_frame = train,
+                            reproducible = TRUE, 
+                            balance_classes = TRUE,
+                            ignore_const_cols = FALSE,
+                            seed = 29,
+                            hidden = c(30, 30, 30), 
+                            epochs = 100,
+                            activation = "Tanh")
+
+
+
+library(caret)
+
+eval_fun <- function(thre) {
+  lapply(1:10, function(x) {
+    
+    set.seed(x)
+    id <- createDataPartition(y = test_for_cross$Class, p = 0.5, list = FALSE)
+    test_df <- test_for_cross[id, ]
+  
+    du_bao_prob <- h2o.predict(pure_nn, test_df %>% as.h2o()) %>% 
+      as.data.frame() %>% 
+      pull(Fraud)
+    
+    du_bao <- case_when(du_bao_prob >= thre ~ "Fraud", 
+                        du_bao_prob < thre ~ "NonFraud") %>% as.factor()
+    cm <- confusionMatrix(du_bao, test_df$Class, positive = "Fraud")
+    
+    bg_gg <- cm$table %>% 
+      as.vector() %>% 
+      matrix(ncol = 4) %>% 
+      as.data.frame() %>% 
+      rename(TP = V1, FN = V2, FP = V3, TN = V4)
+  
+    
+    kq <- c(cm$overall, cm$byClass) 
+    ten <- kq %>% as.data.frame() %>% row.names()
+    
+    kq %>% 
+      as.vector() %>% 
+      matrix(ncol = 18) %>% 
+      as.data.frame() -> all_df
+    
+    names(all_df) <- ten
+    all_df <- bind_cols(all_df, bg_gg)
+    return(all_df)
+  })
+}
+
+
+
+# Đánh giá sự biến đổi theo một loạt ngưỡng: 
+
+system.time(so_sanh_list <- lapply(seq(0.05, 0.6, by = 0.05), eval_fun))
+so_sanh_df <- do.call("bind_rows", so_sanh_list) 
+
+so_sanh_df %<>% 
+  mutate(Threshold = lapply(seq(0.05, 0.6, by = 0.05), function(x) {rep(x, 10)}) %>% unlist())
+
+
+so_sanh_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), Accuracy, Kappa, Sensitivity, Specificity) %>% 
+  gather(Metric, b, -Threshold) %>% 
+  ggplot(aes(Threshold, b, color = Metric)) + 
+  geom_line() + 
+  geom_point(size = 3) + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme(panel.grid.minor = element_blank()) + 
+  scale_x_continuous(breaks = seq(0.05, 0.6, by = 0.05)) + 
+  labs(y = "Accuracy Rate", 
+       title = "Variation of Classifier's Metrics by Threshold")
+```
+
+Conclusion: Optimal Threshold should be 0.15. Next we can comprehensively evaluate ability to investigate fraud cases corresponding to the selected thresholds: 
+
+```{r, fig.fullwidth = TRUE, fig.height=12, fig.width=14}
+
+my_cm_com_dl <- function(thre) {
+  du_bao_prob <- h2o.predict(pure_nn, test) %>% as.data.frame() %>% pull(Fraud)
+  du_bao <- case_when(du_bao_prob >= thre ~ "Fraud", 
+                      du_bao_prob < thre ~ "NonFraud") %>% as.factor()
+  cm <- confusionMatrix(du_bao, test_for_cross$Class, positive = "Fraud")
+  return(cm)
+  
+}
+
+my_threshold <- c(0.05, 0.15, 0.25, 0.5)
+results_list_dl <- lapply(my_threshold, my_cm_com_dl)
+
+
+vis_detection_rate_dl <- function(x) {
+  
+  results_list_dl[[x]]$table %>% as.data.frame() -> m
+  rate <- round(100*m$Freq[1] / sum(m$Freq[c(1, 2)]), 2)
+  acc <- round(100*sum(m$Freq[c(1, 4)]) / sum(m$Freq), 2)
+  acc <- paste0(acc, "%")
+  
+  m %>% 
+    ggplot(aes(Reference, Freq, fill = Prediction)) +
+    geom_col(position = "fill") + 
+    scale_fill_manual(values = c("#e41a1c", "#377eb8"), name = "") + 
+    theme(panel.grid.minor.y = element_blank()) + 
+    theme(panel.grid.minor.x = element_blank()) + 
+    scale_y_continuous(labels = scales::percent) + 
+    labs(x = NULL, y = NULL, 
+         title = paste0("Detecting Fraud Cases when Threshold = ", my_threshold[x]), 
+         subtitle = paste0("Detecting Rate for Fraud Cases: ", rate, "%", ", ", "Accuracy: ", acc))
+  }
+
+
+gridExtra::grid.arrange(vis_detection_rate_dl(1), 
+                        vis_detection_rate_dl(2), 
+                        vis_detection_rate_dl(3), 
+                        vis_detection_rate_dl(4))
+
+
+
+
+```
+
+
+# Random Forests
+
+Instead of using Deep Learning Approach, we can train a Random Forests as a tool for detecting fraud transactions: 
+
+```{r, fig.fullwidth = TRUE, fig.height=12, fig.width=14, warning=FALSE, message=FALSE}
+# Set hyperparameter grid: 
+hyper_grid.h2o <- list(ntrees = seq(100, 800, by = 100), 
+                       mtries = seq(10, 28, by = 2),
+                       sample_rate = c(0.40, 0.55, 0.632, 0.70, 0.80))
+
+# Build grid search: 
+system.time(grid <- h2o.grid(algorithm = "randomForest",
+                             grid_id = "rf_grid",
+                             x = x, y = y, 
+                             training_frame = train,
+                             hyper_params = hyper_grid.h2o,
+                             search_criteria = list(strategy = "Cartesian")))
+
+
+# Collect the results and sort by our model performance metric of choice: 
+grid_perf <- h2o.getGrid(grid_id = "rf_grid", 
+                         sort_by = "auc", 
+                         decreasing = FALSE)
+
+# Best model chosen by validation error: 
+best_model_id <- grid_perf@model_ids[[1]]
+best_model <- h2o.getModel(best_model_id)
+
+
+my_cm_com_rf <- function(thre) {
+  du_bao_prob <- h2o.predict(best_model, test) %>% as.data.frame() %>% pull(Fraud)
+  du_bao <- case_when(du_bao_prob >= thre ~ "Fraud", 
+                      du_bao_prob < thre ~ "NonFraud") %>% as.factor()
+  cm <- confusionMatrix(du_bao, test_for_cross$Class, positive = "Fraud")
+  return(cm)
+  
+}
+
+
+results_list_rf <- lapply(my_threshold, my_cm_com_rf)
+
+
+vis_detection_rate_rf <- function(x) {
+  
+  results_list_rf[[x]]$table %>% as.data.frame() -> m
+  rate <- round(100*m$Freq[1] / sum(m$Freq[c(1, 2)]), 2)
+  acc <- round(100*sum(m$Freq[c(1, 4)]) / sum(m$Freq), 2)
+  acc <- paste0(acc, "%")
+  
+  m %>% 
+    ggplot(aes(Reference, Freq, fill = Prediction)) +
+    geom_col(position = "fill") + 
+    scale_fill_manual(values = c("#e41a1c", "#377eb8"), name = "") + 
+    theme(panel.grid.minor.y = element_blank()) + 
+    theme(panel.grid.minor.x = element_blank()) + 
+    scale_y_continuous(labels = scales::percent) + 
+    labs(x = NULL, y = NULL, 
+         title = paste0("Detecting Fraud Cases when Threshold = ", my_threshold[x]), 
+         subtitle = paste0("Detecting Rate for Fraud Cases: ", rate, "%", ", ", "Accuracy: ", acc))
+  }
+
+
+gridExtra::grid.arrange(vis_detection_rate_rf(1), 
+                        vis_detection_rate_rf(2), 
+                        vis_detection_rate_rf(3), 
+                        vis_detection_rate_rf(4))
+
+
+```
+
+
+Because of the combinatorial explosion, each additional hyperparameter that gets added to our grid search has a huge effect on the time to complete. Consequently, h2o provides an additional grid search path called “RandomDiscrete”, which will jump from one random combination to another and stop once a certain level of improvement has been made, certain amount of time has been exceeded, or a certain amount of models have been ran (or a combination of these have been met). Although using a random discrete search path will likely not find the optimal model, it typically does a good job of finding a very good model.
+
+```{r, fig.fullwidth = TRUE, fig.height=12, fig.width=14, warning=FALSE, message=FALSE}
+# Set hyperparameter grid2: 
+hyper2_grid.h2o <- list(ntrees = seq(100, 800, by = 100),
+                        mtries = seq(5, 25, by = 5),
+                        max_depth = seq(10, 25, by = 5),
+                        min_rows = seq(1, 5, by = 1),
+                        nbins = seq(10, 20, by = 2),
+                        sample_rate = c(0.4, 0.55, 0.632, 0.75, 0.80))
+
+# Select random grid search criteria: 
+search_criteria2 <- list(strategy = "RandomDiscrete",
+                         stopping_metric = "AUC",
+                         stopping_tolerance = 0.005,
+                         stopping_rounds = 10,
+                         max_runtime_secs = 30*60)
+
+# Build grid search: 
+
+system.time(random_grid <- h2o.grid(algorithm = "randomForest",
+                                    grid_id = "rf_grid2",
+                                    x = x, y = y, 
+                                    training_frame = train,
+                                    hyper_params = hyper2_grid.h2o,
+                                    search_criteria = search_criteria2))
+
+# Collect the results and sort by our model performance metric of choice: 
+grid_perf2 <- h2o.getGrid(grid_id = "rf_grid2", 
+                          sort_by = "auc", 
+                          decreasing = FALSE)
+
+# Best Model: 
+best_model2 <- h2o.getModel(grid_perf2@model_ids[[1]])
+
+
+my_cm_com_rf2 <- function(thre) {
+  du_bao_prob <- h2o.predict(best_model2, test) %>% as.data.frame() %>% pull(Fraud)
+  du_bao <- case_when(du_bao_prob >= thre ~ "Fraud", 
+                      du_bao_prob < thre ~ "NonFraud") %>% as.factor()
+  cm <- confusionMatrix(du_bao, test_for_cross$Class, positive = "Fraud")
+  return(cm)
+  
+}
+
+
+results_list_rf2 <- lapply(my_threshold, my_cm_com_rf2)
+
+
+vis_detection_rate_rf2 <- function(x) {
+  
+  results_list_rf2[[x]]$table %>% as.data.frame() -> m
+  rate <- round(100*m$Freq[1] / sum(m$Freq[c(1, 2)]), 2)
+  acc <- round(100*sum(m$Freq[c(1, 4)]) / sum(m$Freq), 2)
+  acc <- paste0(acc, "%")
+  
+  m %>% 
+    ggplot(aes(Reference, Freq, fill = Prediction)) +
+    geom_col(position = "fill") + 
+    scale_fill_manual(values = c("#e41a1c", "#377eb8"), name = "") + 
+    theme(panel.grid.minor.y = element_blank()) + 
+    theme(panel.grid.minor.x = element_blank()) + 
+    scale_y_continuous(labels = scales::percent) + 
+    labs(x = NULL, y = NULL, 
+         title = paste0("Detecting Fraud Cases when Threshold = ", my_threshold[x]), 
+         subtitle = paste0("Detecting Rate for Fraud Cases: ", rate, "%", ", ", "Accuracy: ", acc))
+  }
+
+
+gridExtra::grid.arrange(vis_detection_rate_rf2(1), 
+                        vis_detection_rate_rf2(2), 
+                        vis_detection_rate_rf2(3), 
+                        vis_detection_rate_rf2(4))
+
+
+```
+
+
+
+

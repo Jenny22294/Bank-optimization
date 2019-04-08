@@ -1,0 +1,452 @@
+---
+title: "Ensemble Learning Methods: What Are They and Why Use Them?" 
+subtitle: "R for Killing Pneumonia"
+author: "Nguyen Chi Dung"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# An Introduction to Ensemble Methods in Machine Learning
+
+Ensemble Methods (tạm dịch là **các phương pháp đồng diễn**) là phương pháp kết hợp các mô hình dự báo khác nhau thành một mô hình dự báo có khả sức mạnh phân loại cao hơn ngay cả khi một hoặc một số mô hình thành phần có khả năng phân loại khiêm tốn hoặc yếu. Mô tả này rất giống với hình ảnh của "Năm anh em siêu nhân" mà có lẽ hầu hết thế hệ chúng ta đều xem: 
+
+![](C:/Users/Zbook/Documents/5_anh_em.jpg)
+
+Chi tiết hơn về cách tiếp cận này các bạn có thể tham khảo ở rất nhiều nguồn. Một số ví dụ: 
+
+1. [Nguồn 1](https://blog.statsbot.co/ensemble-learning-d1dcd548e936). 
+
+2. [Nguồn 2](https://machinelearningmastery.com/machine-learning-ensembles-with-r/)
+
+Trong Post này chúng ta sẽ tìm hiểu và khảo sát Ensemble Method với bộ số liệu **hmeq.csv** được sử dụng trong textbook điển hình về mô hình hóa rủi ro tín dụng [Credit Risk Analytics: Measurement Techniques, Applications, and Examples in SAS](https://www.amazon.com/Credit-Risk-Analytics-Measurement-Applications/dp/1119143985). Bộ số liệu này có thể download từ: http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv. 
+
+
+Trước hết chúng ta đọc dữ liệu và thực hiện một số thao tác xử lí sơ bộ và chuẩn bị số liệu: 
+
+```{r, fig.fullwidth = TRUE, fig.height=7, fig.width=12}
+#------------------------------------
+# Perform some data pre-processing
+#------------------------------------
+
+# Load some packages: 
+library(tidyverse)
+library(magrittr)
+
+# Import data: 
+hmeq <- read.csv("http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv")
+
+# Function replaces NA by mean: 
+replace_by_mean <- function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+}
+
+# A function imputes NA observations for categorical variables: 
+
+replace_na_categorical <- function(x) {
+  x %>% 
+    table() %>% 
+    as.data.frame() %>% 
+    arrange(-Freq) ->> my_df
+  
+  n_obs <- sum(my_df$Freq)
+  pop <- my_df$. %>% as.character()
+  set.seed(29)
+  x[is.na(x)] <- sample(pop, sum(is.na(x)), replace = TRUE, prob = my_df$Freq)
+  return(x)
+}
+
+# Use the two functions: 
+df <- hmeq %>% 
+  mutate_if(is.factor, as.character) %>% 
+  mutate(REASON = case_when(REASON == "" ~ NA_character_, TRUE ~ REASON), 
+         JOB = case_when(JOB == "" ~ NA_character_, TRUE ~ JOB)) %>%
+  mutate_if(is_character, as.factor) %>% 
+  mutate_if(is.numeric, replace_by_mean) %>% 
+  mutate_if(is.factor, replace_na_categorical)
+
+
+# Convert BAD to factor and scale 0 -1 data set: 
+df_for_ml <- df %>% 
+  mutate(BAD = case_when(BAD == 1 ~ "Bad", TRUE ~ "Good") %>% as.factor()) %>% 
+  mutate_if(is.numeric, function(x) {(x - min(x)) / (max(x) - min(x))})
+```
+
+# Stage 1: Train Some Machine Learning Models
+
+Trước hết chúng ta huấn luyện đồng thời 6 mô hình trong đó có một mô hình là hồi quy Logistic (đây không phải là một mô hình thuộc nhóm Machine Learning): 
+
+```{r, fig.fullwidth = TRUE, fig.height=7, fig.width=12}
+#-----------------------------------
+#  Simultaneously Train 5 Models
+#-----------------------------------
+
+# Split data: 
+library(caret)
+set.seed(1)
+id <- createDataPartition(y = df_for_ml$BAD, p = 0.7, list = FALSE)
+df_train_ml <- df_for_ml[id, ]
+df_test_ml <- df_for_ml[-id, ]
+
+# Set conditions for training model and cross-validation: 
+
+set.seed(1)
+number <- 5
+repeats <- 2
+control <- trainControl(method = "repeatedcv", 
+                        number = number , 
+                        repeats = repeats, 
+                        classProbs = TRUE, 
+                        savePredictions = "final", 
+                        index = createResample(df_train_ml$BAD, repeats*number), 
+                        summaryFunction = multiClassSummary, 
+                        allowParallel = TRUE)
+
+# Use Parallel computing: 
+library(doParallel)
+registerDoParallel(cores = detectCores() - 1)
+
+# 6 models selected: 
+
+my_models <- c("rf", "adaboost", "knn", "svmRadial", "glm", "nb")
+
+# Train these ML Models: 
+library(caretEnsemble)
+set.seed(1)
+system.time(model_list1 <- caretList(BAD ~., 
+                                     data = df_train_ml,
+                                     trControl = control,
+                                     metric = "Accuracy", 
+                                     methodList = my_models))
+
+
+list_of_results <- lapply(my_models, function(x) {model_list1[[x]]$resample})
+
+# Convert to data frame: 
+total_df <- do.call("bind_rows", list_of_results)
+total_df %<>% mutate(Model = lapply(my_models, function(x) {rep(x, number*repeats)}) %>% unlist())
+
+# Average Accuracy based on 10 samples for these models: 
+total_df %>% 
+  group_by(Model) %>% 
+  summarise(avg_acc = mean(Accuracy)) %>% 
+  ungroup() %>% 
+  arrange(-avg_acc) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 1: Model Performance in decreasing order of Accuracy", 
+               col.names = c("Model", "Average Accuracy"))
+
+
+# Average Sensitivity based on 10 samples for these models: 
+total_df %>% 
+  group_by(Model) %>% 
+  summarise(avg_sen = mean(Sensitivity)) %>% 
+  ungroup() %>% 
+  arrange(-avg_sen) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 2: Model Performance in decreasing order of Sensitivity", 
+               col.names = c("Model", "Average Sensitivity"))
+```
+
+Trong số 6 mô hình này thì adaboost có mức độ chính xác cao nhất và Logistic thì gần bét bảng. Tuy nhiên như đã nói [ở đây](http://rpubs.com/chidungkt/447989), các tổ chức tài chính như ngân hàng sẽ không căn cứ vào Accuracy để chọn mô hình cho mục đích phân loại mà chú trọng nhiều hơn vào khả năng phân loại đúng nhãn hồ sơ xấu (có nhãn là Bad) - tức là tiêu chí Sensitivity. Trùng hợp là thứ hạng của Sensitivity của các mô hình là trùng hợp với thứ hạng của Accuracy như chúng ta có thể thấy ở bảng 2. 
+
+# A Simple Combination for Constructing Ensemble Model
+
+"Kết hợp" 6 mô hình ở trên chúng ta có thể tạo ra một Ensemble Model bằng hàm **caretEnsemble()** như sau: 
+
+```{r, fig.fullwidth = TRUE, fig.height=7, fig.width=12}
+# Combine 6 models: 
+greedy_ensemble <- caretEnsemble(model_list1, 
+                                 metric = "Accuracy",
+                                 trControl = control)
+
+# Draft Results: 
+summary(greedy_ensemble)
+
+```
+
+Kết quả **The resulting Accuracy is: 0.9016** nghĩa là Ensemble Model của chúng ta có Accuracy là 90.16% (chú ý đây là con số trung bình khi thử nghiệm trên 10 mẫu). 
+
+Chúng ta nên khảo sát kĩ hơn khả năng phân loại của mô hình Ensemble này và so sánh với các mô hình thành phần "cấu tạo" nên nó: 
+
+```{r, fig.fullwidth = TRUE, fig.height=7, fig.width=12}
+# Add Ensemble Model: 
+total_df_en <- bind_rows(total_df, greedy_ensemble$ens_model$resample %>% mutate(Model = "ensemble"))
+
+total_df_en %>% 
+  group_by(Model) %>% 
+  summarise(avg_acc = mean(Accuracy)) %>% 
+  ungroup() %>% 
+  arrange(-avg_acc) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 3: Model Performance in decreasing order of Accuracy", 
+               col.names = c("Model", "Average Accuracy"))
+
+total_df_en %>% 
+  group_by(Model) %>% 
+  summarise(avg_sen = mean(Sensitivity)) %>% 
+  ungroup() %>% 
+  arrange(-avg_sen) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 4: Model Performance in decreasing order of Sensitivity", 
+               col.names = c("Model", "Average Sensitivity"))
+
+
+```
+
+Mặc dù Ensemble Model có Accuracy mới chỉ xếp thứ 2 sau adaboost (bảng 3) nhưng đặc điểm sau mới là quan trọng (từ bảng 4): **khả năng phân loại đúng các hồ sơ Bad tăng 38% từ 67.30% lên 92.9%**.  
+
+Chúng ta cũng có thể sử dụng công cụ hình ảnh để đánh giá khả năng phân loại của các mô hình: 
+
+```{r, fig.fullwidth = TRUE, fig.height=12, fig.width=12}
+theme_set(theme_minimal())
+total_df_en %>% 
+  select(-logLoss, -prAUC, -Resample) %>% 
+  gather(a, b, -Model) %>% 
+  ggplot(aes(Model, b, fill = Model, color = Model)) + 
+  geom_boxplot(show.legend = FALSE, alpha = 0.3) + 
+  facet_wrap(~ a, scales = "free") + 
+  coord_flip() + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm")) + 
+  labs(x = NULL, y = NULL, 
+       title = "A Short Comparision: Ensemble Approach vs Some Machine Learning Models", 
+       subtitle = "Valdation Method Used: Cross-validation, 10 samples")
+```
+
+Khả năng phân loại chính xác hồ sơ Bad có thể được kiểm tra ngay trên test data. Dưới đây là so sánh Ensemble và mô hình "tốt nhất" adaboost: 
+
+```{r}
+models_com <- list(model_list1$adaboost, greedy_ensemble)
+lapply(models_com, function(x) {confusionMatrix(predict(x, df_test_ml), df_test_ml$BAD, positive = "Bad")})
+
+```
+
+Ensemble Model phân loại chính xác 299 hồ sơ xấu (trong tổng số tất cả 396 hồ sơ xấu). Trong khi adaboost thì con số này chỉ là 244. Nguyên nhân có thể đến từ sự khác biệt của ROC / AUC. Chúng ta cũng có thể khảo sát ROC / AUC cho hai mô hình này: 
+
+```{r, fig.fullwidth = TRUE, fig.height=12, fig.width=12}
+#  Gói cho tính toán AUC: 
+library(pROC) 
+
+# Viết hàm tính AUC: 
+test_auc_for_ensemble <- function(model) {
+  roc(df_test_ml$BAD, predict(model, df_test_ml, type = "prob"))
+}
+
+
+test_auc_for_caret_obj <- function(model) {
+  roc(df_test_ml$BAD, predict(model, df_test_ml, type = "prob") %>% pull(Bad))
+}
+
+
+# Sử dụng hàm này: 
+my_auc1 <- test_auc_for_ensemble(greedy_ensemble)
+my_auc1$auc
+
+my_auc2 <- test_auc_for_caret_obj(model_list1$adaboost)
+my_auc2$auc
+
+# DF cho so sánh ROC / AUC: 
+df_auc <- bind_rows(data_frame(TPR = my_auc1$sensitivities, FPR = 1 - my_auc1$specificities, Model = "Ensemble"), 
+                    data_frame(TPR = my_auc2$sensitivities, FPR = 1 - my_auc2$specificities, Model = "Adaboost"))
+
+df_auc %>% 
+  ggplot(aes(FPR, TPR, color = Model)) +
+  geom_line(size = 1) +
+  theme_bw() +
+  coord_equal() +
+  geom_abline(intercept = 0, slope = 1, color = "gray37", size = 1, linetype = "dashed") + 
+  labs(x = "FPR (1 - Specificity)", 
+       y = "TPR (Sensitivity)", 
+       title = "ROC Curve and AUC: Ensemble Method vs Adaboost")
+
+```
+
+#  A More Sophisticated Ensemble Model
+
+Chúng ta có thể xây dựng một Ensemble Model phức tạp hơn với hàm **caretStack()**. Điểm cần chú ý là lúc này phải thiết lập một object *control_new* hoàn toàn mới: 
+```{r}
+
+# Huấn luyện Ensemble Model: 
+set.seed(1)
+control_new <- trainControl(method = "repeatedcv", 
+                            number = number , 
+                            repeats = repeats, 
+                            summaryFunction = multiClassSummary, 
+                            allowParallel = TRUE)
+
+gbm_ensemble <- caretStack(model_list1, 
+                           method = "gbm",                                  
+                           metric = "Accuracy",
+                           verbose = FALSE, 
+                           trControl = control_new)
+
+
+# So sánh với những models đã có: 
+
+total_df_en2 <- bind_rows(total_df_en, gbm_ensemble$ens_model$resample %>% mutate(Model = "ensemble2"))
+
+total_df_en2 %>% 
+  group_by(Model) %>% 
+  summarise(avg_acc = mean(Accuracy)) %>% 
+  ungroup() %>% 
+  arrange(-avg_acc) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 5: Model Performance in decreasing order of Accuracy", 
+               col.names = c("Model", "Average Accuracy"))
+
+total_df_en2 %>% 
+  group_by(Model) %>% 
+  summarise(avg_sen = mean(Sensitivity)) %>% 
+  ungroup() %>% 
+  arrange(-avg_sen) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 3)}) %>% 
+  knitr::kable(caption = "Table 6: Model Performance in decreasing order of Sensitivity", 
+               col.names = c("Model", "Average Sensitivity"))
+
+```
+
+Có thể thấy GBM Ensemble Model có Accuracy cao hơn đáng kể so với Ensemble đầu tiên (Linear Ensemble). Nhưng rất có thể GBM Ensemble Model chưa hẳn là mô hình phân loại tốt nhất vì Sensitivity - tức khả năng phân loại chính xác hồ sơ Bad thấp hơn cũng đáng kể. Chung ta nên kiểm tra trên test data để có đánh giá toàn diện hơn: 
+
+```{r}
+confusionMatrix(predict(gbm_ensemble, df_test_ml), df_test_ml$BAD, positive = "Bad")
+```
+
+GBM Ensemble phân loại đúng 303 các hồ sơ Bad trong tổng số 356 trường hợp. Tức mức độ chính xác khi phân loại nhóm hồ sơ xấu là 85.11%. Đây là những dấu hiệu cho thấy GBM Ensemble là mô hình tốt nhất. Tuy nhiên để có kết luận chắc chắn hơn chúng ta cần đánh giá xa hơn ngay sau đây. 
+
+# A Short Comparision between GBM and Linear Ensemble
+
+Để so sánh toàn diện hơn GBM và Linear Ensemble chúng ta viết hai hàm tương tự nhau như về chức năng. Cụ thể, hàm sẽ đánh giá chừng 12 tiêu chí phân loại của mô hình dựa trên 15 lần chọn mẫu, mỗi một lần lấy 50% quan sát từ test data: 
+
+
+```{r}
+# Function 1: 
+
+eval_fun_linear <- function(thre) {
+  lapply(1:15, function(x) {
+    
+    set.seed(x)
+    id <- createDataPartition(y = df_test_ml$BAD, p = 0.5, list = FALSE)
+    test_df <- df_test_ml[id, ]
+  
+    du_bao_prob <- 1 - predict(greedy_ensemble, test_df, type = "prob")
+    
+    du_bao <- case_when(du_bao_prob >= thre ~ "Bad", 
+                        du_bao_prob < thre ~ "Good") %>% as.factor()
+    
+    cm <- confusionMatrix(du_bao, test_df$BAD, positive = "Bad")
+    
+    bg_gg <- cm$table %>% 
+      as.vector() %>% 
+      matrix(ncol = 4) %>% 
+      as.data.frame() %>% 
+      rename(TP = V1, FN = V2, FP = V3, TN = V4)
+  
+    kq <- c(cm$overall, cm$byClass) 
+    ten <- kq %>% as.data.frame() %>% row.names()
+    
+    kq %>% 
+      as.vector() %>% 
+      matrix(ncol = 18) %>% 
+      as.data.frame() -> all_df
+    
+    names(all_df) <- ten
+    all_df <- bind_cols(all_df, bg_gg)
+    return(all_df)
+  })
+}
+
+
+
+# Function 2: 
+
+eval_fun_gbm <- function(thre) {
+  lapply(1:15, function(x) {
+    
+    set.seed(x)
+    id <- createDataPartition(y = df_test_ml$BAD, p = 0.5, list = FALSE)
+    test_df <- df_test_ml[id, ]
+  
+    du_bao_prob <- 1 - predict(gbm_ensemble, test_df, type = "prob")
+    
+    du_bao <- case_when(du_bao_prob >= thre ~ "Bad", 
+                        du_bao_prob < thre ~ "Good") %>% as.factor()
+    
+    cm <- confusionMatrix(du_bao, test_df$BAD, positive = "Bad")
+    
+    bg_gg <- cm$table %>% 
+      as.vector() %>% 
+      matrix(ncol = 4) %>% 
+      as.data.frame() %>% 
+      rename(TP = V1, FN = V2, FP = V3, TN = V4)
+  
+    kq <- c(cm$overall, cm$byClass) 
+    ten <- kq %>% as.data.frame() %>% row.names()
+    
+    kq %>% 
+      as.vector() %>% 
+      matrix(ncol = 18) %>% 
+      as.data.frame() -> all_df
+    
+    names(all_df) <- ten
+    all_df <- bind_cols(all_df, bg_gg)
+    return(all_df)
+  })
+}
+
+# Đánh giá sự biến đổi theo một loạt ngưỡng: 
+system.time(so_sanh_list1 <- lapply(seq(0.05, 0.8, by = 0.05), eval_fun_linear))
+system.time(so_sanh_list2 <- lapply(seq(0.05, 0.8, by = 0.05), eval_fun_gbm))
+
+so_sanh_df1 <- do.call("bind_rows", so_sanh_list1) 
+so_sanh_df1 %<>% 
+  mutate(Threshold = lapply(seq(0.05, 0.8, by = 0.05), function(x) {rep(x, 15)}) %>% unlist())
+
+so_sanh_df2 <- do.call("bind_rows", so_sanh_list2) 
+so_sanh_df2 %<>% 
+  mutate(Threshold = lapply(seq(0.05, 0.8, by = 0.05), function(x) {rep(x, 15)}) %>% unlist())
+
+# Tổng hợp các kết quả: 
+df_com_ensemble <- bind_rows(so_sanh_df1 %>% mutate(Model = "LinearEnsemble"), 
+                             so_sanh_df2 %>% mutate(Model = "GBM_Ensemble"))
+
+
+df_com_ensemble %>% 
+  select(Accuracy, Sensitivity, Specificity, Recall, Model, Threshold) %>% 
+  group_by(Threshold, Model) %>% 
+  summarise_each(funs(mean), Accuracy, Sensitivity, Specificity, Recall) %>% 
+  gather(a, b, -Threshold, -Model) %>% 
+  ggplot(aes(Threshold, b, color = Model)) + 
+  geom_line() + 
+  geom_point() + 
+  facet_wrap(~ a, scales = "free") + 
+  scale_y_continuous(labels = scales::percent) + 
+  scale_color_manual(values = c("#e41a1c", "#377eb8"), name = "") + 
+  theme(panel.grid.minor.y  = element_blank()) + 
+  labs(y = "Accuracy Rate", 
+       title = "A Short Comparision: GBM and Linear Ensemble Approach")
+
+
+```
+
+Kết luận quan trọng là: 
+
+1. Tại mọi ngưỡng thì ba trong bốn tiêu chí GBM Ensemble đều cao hơn. 
+
+2. Accuracy là một đường cong bậc hai hình chữ U ngược. Nguyên nhân là do sự đánh đổi giữa hai thứ sau: khả năng phân loại hồ sơ tốt càng cao thì khả năng phân loại hồ sơ tốt sẽ giảm. 
+
+3. Bắt đầu từ ngưỡng 0.35 thì các tiêu chí đánh giá khả năng phân loại của GBM Ensemble luôn cao hơn Linear Ensemble. 
+
+4. Từ (1), (2) và (3) thì rõ ràng GBM Ensemble nên được các tổ chức tài chính lựa chọn như là mô hình phân loại và xếp hạng Credit Application. 
+

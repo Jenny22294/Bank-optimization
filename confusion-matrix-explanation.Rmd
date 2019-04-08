@@ -1,0 +1,32 @@
+---
+title: "Confusion matrix"
+author: "Jenny Nguyen"
+date: "14 December 2018"
+output: html_document
+---
+
+
+
+Confusion Matrix is a set of criteria designed to evaluate the effectiveness of a commonly used classification model. As its name implies, reading comprehension and application of its results are often confusing.
+
+
+An impressive (and short, memorable) explanation is that we consider the following situation. Two "patients" who suspect that they are pregnant should go to the hospital to diagnose whether they are pregnant or not. Test results may fall into four situations:
+
+1. Patients are diagnosed as pregnant and the fact is that. This situation is called true positive (TP).
+
+2. Patients are diagnosed as pregnant but it is not. This situation is called false positives (FP).
+
+3. Patients are diagnosed not pregnant but in fact this person is pregnant. This situation is called false negatives (FN).
+
+4. The patient was diagnosed as not pregnant and the fact was. This situation is called true negative (TN).
+
+
+In the medical tests, a third condition (also known as type 2) can have far more serious consequences than a second (grade 1) condition.
+
+
+Indeed, one patient is HIV-positive but if he is diagnosed with HIV-negative (a false negative result), the consequences are enormous:  he has no preventive measures and can infect as many people who contact him. At the same time it can lead him to overlook the prolonged lifecycle treatment for saving himeself.
+
+
+
+
+

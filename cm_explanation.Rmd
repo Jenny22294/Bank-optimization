@@ -1,0 +1,768 @@
+---
+title: "Measuring Model Performance in Classification Models: A Short Explanation About Confusion Matrix and Its Application" 
+subtitle: "R for Pleasure"
+author: "Nguyen Chi Dung"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# A Short Explanation About Confusion Matrix
+
+Confusion Matrix (Ma trận nhầm lẫn, viết tắt là CM) là một tập hợp các tiêu chí nhằm đánh giá hiệu quả của một mô hình phân loại thường được sử dụng phổ biến. Đúng như tên gọi của nó, việc đọc hiểu ý nghĩa và ứng dụng kết quả của nó thường gây nhầm lẫn. 
+
+Một giải thích ấn tượng (và cũng ngắn gọn, dễ nhớ) là chúng ta xem xét tình huống sau. Hai "bệnh nhân" vì nghi ngờ mình mang thai nên đến bệnh viện chẩn đoán xem mình có mang thai hay không. Kết quả xét nghiệm có thể rơi vào bốn tình huống sau: 
+
+
+![](C:/Users/Zbook/Documents/false_positive.png)
+
+1. Bênh nhân được chấn đoán là có thai và thực tế đúng là như vậy. Tình huống này kết quả chấn đoán được gọi **dương tính thật**, hay TP (viết tắt của từ True Positive). 
+
+2. Bệnh nhân được chẩn đoán là có thai nhưng thực tế không phải vậy. Tình huống này được gọi là **dương tính giả**, kí hiệu là FP. 
+
+3. Bệnh nhân được chẩn đoán là không có thai nhưng thực tế người này đang mang bầu. Tình huống này được gọi là **âm tính giả**, kí hiệu là FN. 
+
+4. Bệnh nhân được chẩn đoán là không có thai và thực tế đúng như vậy. Tình huống này được gọi là **âm tính thật**, kí hiệu là TN. 
+
+Từ 4 tình huống cơ bản này của CM mà chúng ta có thể tính toán một loạt các tiêu chí khác như mức độ chính xác toàn cục Accuracy, độ nhạy Sensitivity. Chi tiết có thể xem [ở đây](https://en.wikipedia.org/wiki/Sensitivity_and_specificity). 
+
+Trong xét nghiệm y tế thì tình huống thứ 3 (còn gọi là sai sót loại 2) có thể gây ra hậu quả nặng nề hơn nhiều lần so với tình huống thứ 2 (sai sót loại 1). 
+
+Thực vậy, một bệnh nhân **bị nhiếm HIV** nhưng nếu anh ta được chẩn đoán sai là **không nhiễm HIV** (một kết quả âm tính giả) thì hậu quả là rất lớn: anh ta không có biện pháp phòng ngừa và có thể lây nhiễm cho nhiều người và đồng thời cũng bỏ qua các biện pháp điều trị kéo dài sự sống cho mình. 
+
+
+Còn một bệnh nhân **không bị nhiễm HIV** nhưng được chẩn đoán sai là **nhiễm HIV** (một kết quả dương tính giả) thì anh ta có thể được một cơ sở y tế khác kết luận ngược lại là "không bị nhiễm HIV" nếu anh ta khám - chữa trị ở nơi khác. Hậu quả khác là anh ta có thể uống khá nhiều các thuốc điều trị HIV khác nhau (thực tế anh ta không bị bệnh này) và chúng có thể có phản ứng phụ cũng như các tốn kém về tiền bạc khác. 
+
+Miêu tả chi tiết hơn về việc loại trừ phạm phải các sai sót này trong xét nghiệm y học chúng ta có thể tham khảo [ở đây](https://www.livescience.com/32767-what-are-false-positives-and-false-negatives.html?fbclid=IwAR3KShkfurSChXqHhrXNT40o6jNKXexAJXOop2pJp3as_DHIIBIQlRHUL8w). 
+
+
+# An Application of Confusion Matrix in Context of Credit Scoring / Classification
+
+Trong bài toán phân loại và xếp hạng hồ sơ xin vay tín dụng từ một tổ chức tài chính như ngân hàng thì: 
+
+1. Một hồ sơ thực tế là xấu (Bad) nhưng mô hình phân loại mà ngân hàng sử dụng (như Logistic chẳng hạn) phân loại sai thành hồ sơ tốt (Good) dẫn đến quyết định cấp vốn vay cho khách hàng này thì ngân hàng gần như mất trắng vốn vì kết quả sai lầm từ mô hình phân loại. 
+
+2. Một hồ sơ thực tế là tốt nhưng mô hình phân loại sai thành xấu thì ngân hàng sẽ từ chối cấp khoản vay. Khi phạm phải sai lầm này ngân hàng đã bỏ lỡ một cơ hội kiếm lời trên khoản vay mà đáng lẽ ra nên cấp cho khách hàng này. 
+
+Như vậy là cũng như trong y tế, hậu quả phạm phải lỗi loại 2 là lớn hơn nhiều so với lỗi loại 1 đối với ngân hàng. 
+
+Do có (1) và (2) nên dẫn đến một hệ quả quan trọng sau: 
+
+3. Khi lựa chọn mô hình phân loại thì một mô hình có mức độ chính xác toàn cục Accuracy cao lại có thể là mô hình tạo ra nhiều thiệt hại về mặt kinh tế hơn cho ngân hàng. 
+
+Nói cách khác Accuracy không phải là tiêu chí ưu tiên khi đánh giá và lựa chọn mô hình phân loại. Nếu được sử dụng, tiêu chí này có lẽ nên xếp cuối cùng trong danh sách.
+
+Để minh họa, tạo một Data Frame gồm một cột là nhãn dự báo từ một mô hình phân loại nào đó, một cột là nhãn thực tế với hàm ý nhãn B là hồ sơ xấu, nhãn G là hồ sơ tốt. Có thể liên tưởng một cách hài hước rằng hồ sơ xấu có nhãn B là "bị nhiễm HIV". Và đương nhiên mục tiêu của ngân hàng là loại càng nhiều hồ sơ có nhãn B này. 
+
+```{r}
+set.seed(29)
+my_df <- data.frame(du_bao = c(sample(c("B", "G"), 10, replace = TRUE)), 
+                    thuc_te = c(sample(c("B", "G"), 10, replace = TRUE)))
+
+knitr::kable(my_df)
+```
+
+
+Nếu ngân hàng sử dụng kết quả của mô hình phân loại, ví dụ, để cho vay thì chỉ những nhãn nào là chữ G (hàm ý là hồ sơ tốt) sẽ được vay. Theo kết quả của mô hình phân loại, có 3 hồ sơ được duyệt vay như ta có thể thấy:
+
+```{r}
+library(tidyverse)
+my_df %>% 
+  filter(du_bao == "G") %>% 
+  knitr::kable()
+```
+
+Bằng mắt ta có thể thấy trong số 3 hồ sơ được duyệt vay này thì: (1) chỉ có đúng duy nhất một hồ sơ thực tế là nhãn G và mô hình xếp loại đúng là G, (2) còn hai hồ sơ kia thực tế là nhãn B nhưng mô hình lại xếp nhầm thành nhãn G. Chúng ta có thể sử dụng hàm **table()** để thấy kết quả này rõ hơn: 
+
+```{r}
+table(my_df$du_bao, my_df$thuc_te)
+```
+
+Từ CM này chúng ta có thể tính toán một số tiêu chí đánh giá mô hình khác như mô tả dưới đây: 
+
+![](C:/Users/Zbook/Documents/image2.png) 
+
+Trong tình huống của chúng ta thì:
+
+1. Accuracy = (3  + 1) / (3 + 4 + 2 + 1) = 40%. 
+2. Sensitivity = 3 / (3 + 2) = 50%. 
+3. Specificity = 1 / (4 + 1) = 20%. 
+
+Các kết quả trên (và nhiều tiêu chí khác) có thể được tình một cách khác bằng sử dụng hàm **confusionMatrix()** của gói caret: 
+
+```{r}
+library(caret)
+confusionMatrix(my_df$du_bao, my_df$thuc_te, positive = "B")
+```
+
+Sensitivity chính là tiêu chí mà ngân hàng nên chú ý và tập trung nhiều hơn vì đây là thước đo đánh giá mức độ chính xác khi phân loại các hồ sơ có nhãn B - tức là các hồ sơ "nhiễm HIV". Chẳng hạn, trong bối cảnh thu hẹp tín dụng do nền kinh tế suy thoái thì giữa các mô hình phân loại, ngân hàng nên chọn mô hình nào mà có Sensitivity cao.
+
+Một lí do nữa cần lưu ý là tồn tại một quy tắc khó chịu sau: **sự đánh đổi giữa các tiêu chí**. Điều này có nghĩa là với một mô hình, nếu bằng cách thức nào đó mà chúng ta cố gắng nâng cao Sensitivity chẳng hạn thì một tiêu chí nào đó như Specificity (hoặc Accuracy) sẽ giảm. 
+
+Điều này được giải thích ngay sau đây. 
+
+# Accuracy Trade-offs
+
+Hầu hết các mô hình phân loại (bất kể chúng là mô hình Logistic hay các cách tiếp cận của Machine Learning) thì kết quả cuối cùng của mô hình vẫn là "xác suất xẩy ra sự kiện quan tâm" - tức là một con số bất kì nào đó nằm giữa 0 và 1. 
+
+Trong tình huống phân loại hồ sơ tín dụng, nếu mô hình Logistic cho ra kết quả rằng xác xuất khách hàng này rơi vào sự kiện mà ngân hàng quan tâm là "vỡ nợ" là 0.45 (xác suất này, các tài liệu và sách vở về phân loại hồ sơ tín dụng gọi bằng một cái tên mang tính "chuyên ngành" hơn là **xác suất vỡ nợ PD** viết tắt của từ Probability of Default). Trong tình huống này số phận của hồ sơ này hoàn toàn phụ thuộc vào ngưỡng (Threshold) được sử dụng để phân loại (hay dán nhãn cho hồ sơ): 
+
+1. Nếu người làm mô hình quyết định rằng nếu PD này mà lớn hơn 0.4 thì hồ sơ này sẽ được dán nhãn Bad. 
+2. Nhưng nếu chọn ngưỡng lỏng hơn là 0.5 chẳng hạn, thì hồ sơ này lại được dán nhãn là Good. 
+
+Hầu hết các phần mềm nếu để mặc định thì ngưỡng được chọn để dán nhãn luôn là 0.5. Để minh họa sự đánh đổi giữa các tiêu chí đo lường mức độ chính xác và ngưỡng được chọn chúng ta xét bộ số liệu [German Credit](https://archive.ics.uci.edu/ml/datasets/statlog+(german+credit+data)).  
+
+```{r}
+library(magrittr)
+# Sử dụng bộ dữ liệu GermanCredit: 
+data("GermanCredit")
+
+# Viết hàm dán lại nhãn (tôi thích chữ in hoa hơn in thường) cho biến mục tiêu: 
+
+label_rename <- function(x) {
+  case_when(x == "Bad" ~ "BAD", 
+            x == "Good" ~ "GOOD")
+}
+
+# Thực hiện một số thao tác tiền xử lí số liệu: 
+
+df <- GermanCredit %>% 
+  rename(BAD = Class) %>% 
+  mutate(BAD = as.character(BAD)) %>% 
+  mutate(BAD = label_rename(BAD)) %>% 
+  mutate(BAD = as.factor(BAD))
+
+# Thực hiện phân chia dữ liệu: 
+set.seed(1)
+id <- createDataPartition(y = df$BAD, p = 0.7, list = FALSE)
+train <- df[id, ]
+test <- df[-id, ]
+
+# Thiết lập môi trường tinh chỉnh tham số và cross - validation: 
+
+set.seed(1)
+train.control <- trainControl(method = "repeatedcv", 
+                              number = 5,
+                              repeats = 5, 
+                              classProbs = TRUE,
+                              allowParallel = TRUE, 
+                              summaryFunction = multiClassSummary)
+
+# Xây dựng mô hình Logistic trên bộ dữ liệu train: 
+set.seed(1)
+my_logit <- train(BAD ~., 
+                  data = train, 
+                  method = "glm", 
+                  metric = "AUC", 
+                  trControl = train.control)
+```
+
+Như đã nói, R (cũng như các phần mềm khác) mặc định sử dụng ngưỡng 0.5 để dán nhãn. Điều này dẫn đến kết quả được thể hiện trên CM như sau: 
+
+```{r}
+# Make predictions on test data: 
+pred_class <- predict(my_logit, test %>% select(-BAD), type = "raw")
+
+# Confusion matrix: 
+confusionMatrix(pred_class, test$BAD, positive = "BAD")
+```
+
+Nếu chúng ta muốn tính toán cụ thể PD thì: 
+
+```{r}
+# Make prediction of probabilities: 
+pred_prob_bad <-  predict(my_logit, test %>% select(-BAD), type = "prob") %>% pull(BAD)
+```
+
+Viết một hàm chuyển hóa từ xác suất vỡ nợ (PD) sang nhãn BAD hoặc GOOD với ngưỡng được chọn: 
+
+```{r}
+# Function converts probability to class: 
+
+convert_to_label <- function(threshold) {
+  y <- case_when(pred_prob_bad >= threshold ~ "BAD", TRUE ~ "GOOD")
+  return(as.factor(y))
+}
+```
+
+Với ngưỡng 0.5 thì kết quả trùng hợp với những gì chúng ta đã biết: 
+
+```{r}
+# Compare results: 
+confusionMatrix(convert_to_label(0.5), test$BAD, positive = "BAD")
+```
+
+Nhưng với ngưỡng chặt hơn (giảm từ 0.5 xuống 0.4) thì mức độ chính xác khi phân loại hồ sơ cho nhãn BAD (tức Sensitivity) tăng từ 45.56% lên 51.11% 
+
+```{r}
+confusionMatrix(convert_to_label(0.4), test$BAD, positive = "BAD")
+```
+
+Chúng ta có thể khảo sát toàn diện hơn một số tiêu chí đánh giá chất lượng của mô hình khi mà ngưỡng được chọn thay đổi. Để loại bỏ sự ngẫu nhiên và có thể tổng quát hóa kết quả chúng ta sẽ test kết quả trên 100 lần chọn mẫu và mẫu được thử nghiệm là 100 lấy ra từ test data mà chúng ta đã chuẩn bị ở trên. 
+
+Công việc này được thực hiện bằng một hàm như sau: 
+
+```{r}
+eval_fun2 <- function(thre) {
+  lapply(1:100, function(x) {
+    set.seed(x)
+    id <- createDataPartition(y = test$BAD, p = 100 / nrow(test), list = FALSE)
+    test_df <- test[id, ]
+    
+    du_bao <- predict(my_logit, test_df, type = "prob") %>% pull(BAD)
+    du_bao <- case_when(du_bao >= thre ~ "BAD", du_bao < thre ~ "GOOD") %>% as.factor()
+    
+    cm <- confusionMatrix(du_bao, test_df$BAD, positive = "BAD")
+    
+    bg_gg <- cm$table %>% 
+      as.vector() %>% 
+      matrix(ncol = 4) %>% 
+      as.data.frame()
+    
+    names(bg_gg) <- c("TP", "FN", "FP", "TN") 
+    
+    
+    kq <- c(cm$overall, cm$byClass) 
+    ten <- kq %>% as.data.frame() %>% row.names()
+    
+    kq %>% 
+      as.vector() %>% 
+      matrix(ncol = 18) %>% 
+      as.data.frame() -> all_df
+    
+    names(all_df) <- ten
+    all_df <- bind_cols(all_df, bg_gg)
+    return(all_df)
+  })
+}
+```
+
+Sử dụng hàm này: 
+
+```{r}
+# Đánh giá sự biến đổi theo một loạt ngưỡng: 
+so_sanh_list <- lapply(seq(0.1, 0.90, by = 0.05), eval_fun2)
+so_sanh_df <- do.call("bind_rows", so_sanh_list) 
+
+so_sanh_df %<>% 
+  mutate(Threshold = lapply(seq(0.1, 0.90, by = 0.05), function(x) {rep(x, 100)}) %>% unlist())
+
+names(so_sanh_df) <- names(so_sanh_df) %>% str_replace_all(" ", "")
+
+# Chính xác chung: 
+so_sanh_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), Accuracy) -> acc
+```
+
+Ngưỡng 0.55 thì Accuracy là lớn nhất và là và 74%: 
+
+```{r}
+acc %>% slice(which.max(.$Accuracy))
+```
+
+Nhưng ngưỡng mà phân loại hồ sơ xấu tốt nhất thì không phải 0.55 mà là 0.1: 
+
+```{r}
+so_sanh_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), Sensitivity) %>% 
+  slice(which.max(.$Sensitivity))
+  
+```
+
+Chúng ta có thể khảo sát đồng thời một số tiêu chí nhằm làm rõ hơn sự đánh đổi bằng công cụ hình ảnh: 
+
+```{r}
+theme_set(theme_minimal())  
+
+so_sanh_df %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(median), Accuracy, Kappa, Sensitivity, Specificity) %>% 
+  gather(Metric, b, -Threshold) %>% 
+  ggplot(aes(Threshold, b, color = Metric)) + 
+  geom_line() + 
+  geom_point(size = 3) + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme(panel.grid.minor = element_blank()) + 
+  scale_x_continuous(breaks = seq(0.1, 0.9, by = 0.05)) + 
+  geom_hline(yintercept = 0.7, color = "brown", size = 1) + 
+  labs(y = "Accuracy Rate", 
+       title = "Variation of Logistic Classifier's Metrics by Threshold", 
+       subtitle = "Data Used: German Credit Data")
+```
+
+
+Khi Threshold là 0.55 thì mức chính xác chung cho phân loại đúng cả hồ sơ tốt lẫn xấu là cao nhất. Vượt qua ngưỡng 0.55 này thì Accuracy lại giảm. 
+
+Sự đánh đổi sau đây là rõ ràng: khi ngưỡng được lựa chọn tăng thì khả năng phân loại chính xác hồ sơ tốt  (Specificity) tăng nhưng đồng thời với đó là khả năng phân loại hồ sơ xấu (Sensitivity) lại giảm. Chúng ta có thể so sánh cụ thể luôn với một số ngưỡng: 
+
+```{r}
+# Viết hàm: 
+my_cm_com <- function(thre) {
+  du_bao <- predict(my_logit, train %>% select(-BAD), type = "prob") %>% pull(BAD)
+  du_bao <- case_when(du_bao >= thre ~ "BAD", du_bao < thre ~ "GOOD") %>% as.factor()
+  cm <- confusionMatrix(du_bao, train$BAD)
+  return(cm)
+  
+}
+
+# Sử dụng hàm: 
+lapply(c(0.1, 0.4, 0.6), my_cm_com)
+
+```
+
+Sự đánh đổi giữa các tiêu chí phân loại của mô hình còn được biểu diễn bằng một "ngôn ngữ" hình ảnh thường được sử dụng rất phổ biến là đường ROC (ROC Curve) và khái niệm diện tích nằm dưới đường cong AUC được mô tả chi tiết [ở đây](https://en.wikipedia.org/wiki/Receiver_operating_characteristic). 
+
+Theo quy ước, ROC là đường biểu diễn sự đánh đổi giữa khả tỉ lệ phân loại sai hồ sơ tốt (1 - Specificity) và tỉ lệ phân loại đúng hồ sơ xấu (Sensitivity) tương ứng với các ngưỡng khác nhau. Và diện tích nằm dưới đường cong ROC này được gọi là AUC. 
+
+Chúng ta có thể sử dụng một số hàm sẵn có của R để tính toán AUC và hình ảnh hóa cho ROC như sau: 
+
+
+```{r}
+#  Gói cho tính toán AUC: 
+library(pROC) 
+
+# Viết hàm tính AUC: 
+test_auc <- function(model, data) {
+  roc(data$BAD, predict(model, test %>% select(-BAD), type = "prob") %>% pull(BAD))
+}
+
+# Sử dụng hàm này: 
+my_auc <- test_auc(my_logit, test)
+my_auc$auc
+
+```
+
+Một mô hình phân loại nhị phân (biến được phân loại chỉ có hai nhãn) thì AUC càng lớn càng tốt. Nếu AUC = 0.5 thì khả năng dự báo của mô hình được gọi là tương với đoán ngẫu nhiên. Trong hầu hết các ứng dụng, mô hình có chất lượng phân loại chấp nhận được thì AUC nên tối thiếu là lớn hơn hoặc bằng 0.7. 
+
+Người ta còn có thể sử dụng một biến thể khác của AUC là hệ số GINI được tính theo công thức $GINI = 2*AUC - 1$. Dưới đây là R codes cho biểu diễn ROC - đường cong làm cơ sở tính toán AUC và GINI: 
+
+```{r}
+sen_spec_df <- data_frame(TPR = my_auc$sensitivities, FPR = 1 - my_auc$specificities)
+
+sen_spec_df %>% 
+  ggplot(aes(x = FPR, ymin = 0, ymax = TPR))+
+  geom_polygon(aes(y = TPR), fill = "red", alpha = 0.3)+
+  geom_path(aes(y = TPR), col = "firebrick", size = 1.2) +
+  geom_abline(intercept = 0, slope = 1, color = "gray37", size = 1, linetype = "dashed") + 
+  theme_bw() +
+  coord_equal() +
+  labs(x = "FPR (1 - Specificity)", 
+       y = "TPR (Sensitivity)", 
+       title = "Model Performance for Logistic Classifier based on Test Data", 
+       subtitle = paste0("AUC Value: ", my_auc$auc %>% round(2)))
+
+```
+
+
+# Optimal Threshold that Maximizes Commercial Bank's Profit
+
+Vì cái giá phải trả khi phạm sai lầm loại 2 là cao hơn nhiều so với cái giá phải trả khi phạm sai lầm loại 1 nên chúng ta có kết luận rằng: 
+
+1. Accuracy không phải là tiêu chí lựa chọn mô hình hay căn cứ vào đó để đề xuất nên hay không nên sử dụng. 
+2. Nếu chúng ta điều chỉnh ngưỡng phân loại hồ sơ theo hướng khắt khe hơn khi phân loại hồ sơ xấu thì ngân hàng đối diện với đồng thời hai vấn đề sau: một mặt, ngân hàng có thể từ chối nhiều hồ sơ xấu hơn nhưng mặt khác cũng buộc phải từ chối nhiều cơ hội kiếm lãi hơn khi bỏ lỡ mất khách hàng tiềm năng do khách hàng này thực sự tốt nhưng mô hình lại phân loại nhầm thành hồ sơ xấu. 
+
+Điều này gợi ý rằng chúng ta cần tìm một ngưỡng tối ưu sao cho tổng lợi ích thu được khi từ chối càng nhiều hồ sơ xấu và thiệt hại phải gánh khi bỏ lỡ mất cơ hội kiếm lời cho khách hàng tốt. 
+
+Có nhiều giải pháp có thể được áp dụng để tìm ngưỡng tối ưu này. Một trong những cách đó là chúng ta sử dụng mô phỏng Monte Carlo với các giả thiết, đơn giản như sau: 
+
+1. Nếu khách hàng tốt mà mô hình phân loại đúng là tốt thì ngân hàng sẽ thu được lãi 30% trên số tiền cho vay. Đây là những khách hàng thuộc tình huống TN (True Negative). 
+
+2. Nếu khách hàng mà xấu nhưng mô hình lại phân loại sai thành tốt thì ngân hàng sẽ mất trắng vốn khi cho vay khách hàng này. Đây là những khách hàng thuộc tình huống FN (False Negative). 
+
+3. Số tiền mỗi khách hàng được vay có phân phối tương tự như phân phối của hạn mức mà họ đề xuất trong credit application. 
+
+Trước hết chúng ta tính toán kết quả phân loại của mô hình Logistic với một loạt các ngưỡng khác nhau: 
+
+```{r}
+df_th_15 <- do.call("bind_rows", eval_fun2(0.15)) %>% mutate(Thr = "Thre = 0.15") 
+df_th_20 <- do.call("bind_rows", eval_fun2(0.20)) %>% mutate(Thr = "Thre = 0.20")
+df_th_30 <- do.call("bind_rows", eval_fun2(0.30)) %>% mutate(Thr = "Thre = 0.30")
+df_th_40 <- do.call("bind_rows", eval_fun2(0.40)) %>% mutate(Thr = "Thre = 0.40")
+df_th_50 <- do.call("bind_rows", eval_fun2(0.50)) %>% mutate(Thr = "Thre = 0.50")
+df_th_55 <- do.call("bind_rows", eval_fun2(0.55)) %>% mutate(Thr = "Thre = 0.55")
+df_th_60 <- do.call("bind_rows", eval_fun2(0.60)) %>% mutate(Thr = "Thre = 0.60")
+df_th_65 <- do.call("bind_rows", eval_fun2(0.65)) %>% mutate(Thr = "Thre = 0.65")
+
+```
+
+
+Viết hàm tính toán lợi nhuận dựa trên mô phỏng với các giả thiết như trên: 
+
+```{r}
+# Viết hàm mô phỏng lợi nhuận: 
+
+profit_simu1 <- function(data_from_model, rate, so_lan_mo_phong) {
+  khoan_vay <- GermanCredit$Amount
+  n_vay_tot <- data_from_model$TN %>% sum()
+  n_vay_xau <- data_from_model$FN %>% sum()
+  
+  sapply(1:so_lan_mo_phong, function(x) {
+    set.seed(x)
+    so_tien_cho_vay_tot <- sample(khoan_vay, n_vay_tot, replace = TRUE)
+    so_tien_cho_vay_xau <- sample(khoan_vay, n_vay_xau, replace = TRUE)
+    loi_nhuan <- sum(rate*so_tien_cho_vay_tot) - sum(so_tien_cho_vay_xau)
+    
+  })
+}
+```
+
+Sử dụng hàm mô phỏng lợi nhuận: 
+
+```{r}
+# Sử dụng hàm với 5000 lần mô phỏng, lãi suất 30%: 
+profit_simu1(data_from_model = df_th_15, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p1
+
+profit_simu1(data_from_model = df_th_20, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p2
+
+profit_simu1(data_from_model = df_th_30, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p3
+
+profit_simu1(data_from_model = df_th_40, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p4
+
+profit_simu1(data_from_model = df_th_50, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p5
+
+profit_simu1(data_from_model = df_th_55, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p55
+
+profit_simu1(data_from_model = df_th_60, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p6
+
+profit_simu1(data_from_model = df_th_65, 
+             rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p65
+
+n <- length(p1)
+
+
+# Tạo ra DF về lợi nhuận cho mục đích đánh giá và so sánh: 
+df_for_comp <- bind_rows(data_frame(Profit = p1, Threshold = rep("Thr = 0.15", n)), 
+                         data_frame(Profit = p2, Threshold = rep("Thr = 0.20", n)), 
+                         data_frame(Profit = p3, Threshold = rep("Thr = 0.30", n)), 
+                         data_frame(Profit = p4, Threshold = rep("Thr = 0.40", n)), 
+                         data_frame(Profit = p5, Threshold = rep("Thr = 0.50", n)), 
+                         data_frame(Profit = p55, Threshold = rep("Thr = 0.55", n)), 
+                         data_frame(Profit = p6, Threshold = rep("Thr = 0.60", n)), 
+                         data_frame(Profit = p65, Threshold = rep("Thr = 0.65", n)))
+```
+
+Có thể thấy với mục tiêu là tối đa hóa lợi nhuận thì ngân hàng nên sử dụng ngưỡng 0.2 cho mô hình phân loại Logistic. Cần lưu ý rằng tại ngưỡng tối đa hóa Accuracy (là 0.55) thì đây không phải là ngưỡng tối ưu hóa lợi nhuận: 
+
+```{r}
+df_for_comp %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(mean, median, min, max, sd), Profit) %>% 
+  arrange(-mean) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 0)}) %>% 
+  knitr::kable()
+```
+
+
+Nguyên nhân mà chúng ta đã biết là tại ngưỡng tối đa hóa Accuracy này thì cũng là ngưỡng mà tạo ra nhiều sai lầm loại 2 hơn như chúng ta có thể thấy: 
+
+```{r}
+lapply(c(0.2, 0.55), my_cm_com)
+```
+
+
+Các kết luận trên có thể tóm tắt theo một cách khác bởi công cụ hình ảnh: 
+
+```{r}
+# Hình ảnh hóa lợi nhuận và phân phối lợi nhuận: 
+df_for_comp %>% 
+  ggplot(aes(Profit / 1000)) + 
+  geom_density(fill = "red", color = "red", alpha = 0.3) + 
+  geom_histogram(aes(y = ..density..), color = "blue", fill = "blue", alpha = 0.3) + 
+  facet_wrap(~ Threshold, scales = "free") + 
+  labs(x = NULL, y = NULL, 
+       title = "Simulated Profit Based Monte Carlo Method by Threshold for Logistic Model", 
+       subtitle = "Data Used: German Credit Data") 
+```
+
+Cũng có thể thấy lợi nhuận trung bình là một hàm bậc hai hình chữ U ngược: 
+
+```{r}
+df_for_comp %>% 
+  ggplot(aes(x = Threshold, y = Profit / 1000, fill = Threshold, color = Threshold)) + 
+  geom_boxplot(alpha = 0.3) + 
+  labs(x = NULL, y = NULL, 
+       title = "Simulated Profit Based Monte Carlo Method by Threshold for Logistic Model", 
+       subtitle = "Data Used: German Credit Data")
+```
+
+# Compare with Profit that Results from some Machine Learning Approaches
+
+Các nghiên cứu đã chỉ ra rằng các cách tiếp cận của Machine Learning chính xác hơn Logistic khi dự báo PD. Điều này cũng hàm ý rằng sử dụng các cách tiếp cận của ML có thể cho kết quả lợi nhuận tốt hơn đối với ngân hàng. 
+
+Như đã biết ở mục trên, với Threshold = 0.2 thì ngân hàng sẽ đạt được mục tiêu tối đa hóa lợi nhuận và là 1651468 khi sử dụng Logistic. 
+
+Nếu sử dụng chính ngưỡng này và sử dụng một cách tiếp cận khác của ML thì lợi nhuận mô phỏng có hệ quả từ sử dụng một số cách tiếp cận của ML cho phân loại có thể cao hơn. 
+
+R codes dưới đây chúng ta huấn luyện đồng thời 5 mô hình ML và cả Logistic, trong đó Logistic đóng vai trò nhu base line để so sánh: 
+
+```{r}
+set.seed(1)
+number <- 3
+repeats <- 5
+
+control <- trainControl(method = "repeatedcv", 
+                        number = number, 
+                        repeats = repeats, 
+                        classProbs = TRUE, 
+                        savePredictions = "final", 
+                        index = createResample(train$BAD, number*repeats), 
+                        summaryFunction = multiClassSummary, 
+                        allowParallel = TRUE)
+
+# Use Parallel computing (I use 8 CPU cores for training ML Models): 
+library(doParallel)
+registerDoParallel(cores = 8)
+
+# Simultaneously train some machine learning models: 
+library(caretEnsemble)
+set.seed(1)
+my_models <- c("rf", "adaboost", "knn", "svmRadial", "nb", "glm")
+
+system.time(model_list1 <- caretList(BAD ~., 
+                                     data = train,
+                                     trControl = control,
+                                     metric = "Accuracy", 
+                                     methodList = my_models))
+
+# Extract all results from ML models and compare based on 12 measures for evaluating classification performance:
+
+list_of_results <- lapply(my_models, function(x) {model_list1[[x]]$resample})
+
+# Convert to data frame: 
+total_df <- do.call("bind_rows", list_of_results)
+total_df %<>% mutate(Model = lapply(my_models, function(x) {rep(x, number*repeats)}) %>% unlist())
+
+```
+
+Plot dưới đây chỉ ra rằng, ví dụ, Random Forests chiếm ưu thế so với Logistic ở hầu hết các tiêu chí: 
+
+```{r}
+# Compare model performance based on 12 measures:
+
+total_df %>% 
+  select(-logLoss, -prAUC, -Resample) %>% 
+  gather(a, b, -Model) %>% 
+  ggplot(aes(Model, b, fill = Model, color = Model)) + 
+  geom_boxplot(show.legend = FALSE, alpha = 0.3) + 
+  facet_wrap(~ a, scales = "free") + 
+  coord_flip() + 
+  scale_y_continuous(labels = scales::percent) + 
+  theme(plot.margin = unit(c(1, 1, 1, 1), "cm")) + 
+  labs(x = NULL, y = NULL, 
+       title = "Model Performance Based on 12 Criteria for Alternative ML Models", 
+       subtitle = "Valdation Method Used: Cross-validation")
+```
+
+Chúng ta có thể phân tích chi tiết hơn AUC của hai mô hình trên bộ dữ liệu test: 
+
+```{r}
+# Compare AUC: 
+my_rf <- model_list1$rf
+model_list <- list(Logistic = my_logit, RF = my_rf)
+model_list_roc <- model_list %>% map(test_auc, data = test)
+
+# map(1:2, function(x) {model_list_roc[[x]] %>% .[["auc"]]})
+model_list_roc %>% map(auc)
+```
+
+Kết quả chỉ ra rằng AUC của RF cao hơn. Đây là một dấu hiệu cho thấy: nếu sử dụng RF cho phân loại thì sẽ đạt lợi nhuận "tối ưu" cao hơn. Chữ tối ưu ở đây được cho vào ngoặc kép với hàm ý rằng: chúng ta sử dụng ngưỡng tối ưu cho Logistic chứ chưa phải cho RF. 
+
+Chúng ta có thể vẽ ROC cho cả hai mô hình: 
+
+```{r}
+# Draft ROC curves:
+
+results_list_roc <- list()
+num_mod <- 1
+
+for(the_roc in model_list_roc){
+  results_list_roc[[num_mod]] <- 
+  data_frame(TPR = the_roc$sensitivities,
+             FPR = 1 - the_roc$specificities,
+             Model = names(model_list)[num_mod])
+  num_mod <- num_mod + 1
+  }
+
+results_df_roc <- bind_rows(results_list_roc)
+
+# Plot ROC curve for 2 models:
+
+results_df_roc %>% 
+  ggplot(aes(FPR, TPR, color = Model)) +
+  geom_line(size = 1) +
+  theme_bw() +
+  coord_equal() +
+  geom_abline(intercept = 0, slope = 1, color = "gray37", size = 1, linetype = "dashed") + 
+  labs(x = "FPR (1 - Specificity)", 
+       y = "TPR (Sensitivity)", 
+       title = "Model Performance based on Test Data by Model Selected")
+```
+
+Tương tự chúng ta viết hàm đánh giá kết quả phân loại của RF trên 100 lần chọn mẫu, mỗi lần 100 quan sát: 
+
+```{r}
+
+eval_fun2_rf <- function(thre) {
+  lapply(1:100, function(x) {
+  set.seed(x)
+  id <- createDataPartition(y = test$BAD, p = 100 / nrow(test), list = FALSE)
+  test_df <- test[id, ]
+
+  du_bao <- predict(my_rf, test_df, type = "prob") %>% pull(BAD)
+  du_bao <- case_when(du_bao >= thre ~ "BAD", du_bao < thre ~ "GOOD") %>% as.factor()
+
+  cm <- confusionMatrix(du_bao, test_df$BAD, positive = "BAD")
+
+  bg_gg <- cm$table %>% 
+  as.vector() %>% 
+  matrix(ncol = 4) %>% 
+  as.data.frame()
+
+  names(bg_gg) <- c("TP", "FN", "FP", "TN")
+
+  kq <- c(cm$overall, cm$byClass) 
+  ten <- kq %>% as.data.frame() %>% row.names()
+
+  kq %>% 
+    as.vector() %>% 
+    matrix(ncol = 18) %>% 
+    as.data.frame() -> all_df
+
+  names(all_df) <- ten
+  all_df <- bind_cols(all_df, bg_gg)
+  return(all_df)})
+}
+
+# Sử dụng hàm: 
+df_th_20_rf <- do.call("bind_rows", eval_fun2_rf(0.20)) %>% mutate(Thr = "Thre = 0.20")
+```
+
+So sánh lợi nhuận mô phỏng giữa hai cách tiếp cận là Logistic và RF chúng ta có thể thấy sử dụng RF mang lại nhiều lợi nhuận hơn cho ngân hàng: 
+
+```{r}
+profit_simu1(data_from_model = df_th_20, rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p2
+
+profit_simu1(data_from_model = df_th_20_rf, rate = 0.30, 
+             so_lan_mo_phong = 5000) -> p20_rf_profit
+
+compare_rf_logit <- data_frame(Profit = c(p2, p20_rf_profit), 
+Model = rep(c("Logistic", "Random Forests"), each = 5000, times = 1))
+
+compare_rf_logit %>% 
+  ggplot(aes(x = Model, y = Profit / 1000, fill = Model, color = Model)) + 
+  geom_boxplot(alpha = 0.3) + 
+  labs(x = NULL, y = NULL, 
+  title = "Simulated Profit Based Monte Carlo Method by Method Selected", 
+  subtitle = "Threshold: 0.2")
+```
+
+Chi tiết hơn các về các tiêu chí thống kê của lợi nhuận giữa hai cách tiếp cận: 
+
+```{r}
+compare_rf_logit %>% 
+  group_by(Model) %>% 
+  summarise_each(funs(mean, median, min, max, sd), Profit) %>% 
+  arrange(-mean) %>% 
+  mutate_if(is.numeric, function(x) {round(x, 0)}) %>% 
+  knitr::kable()
+```
+
+Chú ý rằng lợi nhuận trung bình 1914124 này có thể tạm gọi là tối ưu. Vì ngưỡng tối ưu sử dụng cho mô phỏng là "mượn" từ ngưỡng tối ưu của Logistic. Có thể tồn tại một ngưỡng tối ưu cho RF và ngưỡng này có thể khác 0.2.  
+
+# Optimal Threshold for Random Forests
+
+Tương tự như đã làm với Logistic Model chúng ta có thể tìm ngưỡng tối ưu hóa lợi nhuận khi sử dụng RF. Ngưỡng tối ưu cho RF là trùng hợp với ngưỡng tối ưu của Logistic như ta có thể thấy: 
+
+```{r}
+# Tính toán kết quả phân loại của RF với một loạt ngưỡng: 
+df_th_15_rf <- do.call("bind_rows", eval_fun2_rf(0.15)) %>% mutate(Thr = "Thre = 0.15") 
+df_th_20_rf <- do.call("bind_rows", eval_fun2_rf(0.20)) %>% mutate(Thr = "Thre = 0.20")
+df_th_30_rf <- do.call("bind_rows", eval_fun2_rf(0.30)) %>% mutate(Thr = "Thre = 0.30")
+df_th_40_rf <- do.call("bind_rows", eval_fun2_rf(0.40)) %>% mutate(Thr = "Thre = 0.40")
+df_th_50_rf <- do.call("bind_rows", eval_fun2_rf(0.50)) %>% mutate(Thr = "Thre = 0.50")
+df_th_55_rf <- do.call("bind_rows", eval_fun2_rf(0.55)) %>% mutate(Thr = "Thre = 0.55")
+df_th_60_rf <- do.call("bind_rows", eval_fun2_rf(0.60)) %>% mutate(Thr = "Thre = 0.60")
+df_th_65_rf <- do.call("bind_rows", eval_fun2_rf(0.65)) %>% mutate(Thr = "Thre = 0.65")
+
+# Tạo DF cho so sánh: 
+profit_simu1(data_from_model = df_th_15_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p1_rf
+profit_simu1(data_from_model = df_th_20_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p2_rf
+profit_simu1(data_from_model = df_th_30_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p3_rf
+profit_simu1(data_from_model = df_th_40_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p4_rf
+profit_simu1(data_from_model = df_th_50_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p5_rf
+profit_simu1(data_from_model = df_th_55_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p55_rf
+profit_simu1(data_from_model = df_th_60_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p6_rf
+profit_simu1(data_from_model = df_th_65_rf, rate = 0.30, so_lan_mo_phong = 5000) -> p65_rf
+
+# Tạo ra DF về lợi nhuận cho mục đích đánh giá và so sánh: 
+df_for_comp <- bind_rows(data_frame(Profit = p1_rf, Threshold = rep("Thr = 0.15", n)), 
+                         data_frame(Profit = p2_rf, Threshold = rep("Thr = 0.20", n)), 
+                         data_frame(Profit = p3_rf, Threshold = rep("Thr = 0.30", n)), 
+                         data_frame(Profit = p4_rf, Threshold = rep("Thr = 0.40", n)), 
+                         data_frame(Profit = p5_rf, Threshold = rep("Thr = 0.50", n)), 
+                         data_frame(Profit = p55_rf, Threshold = rep("Thr = 0.55", n)), 
+                         data_frame(Profit = p6_rf, Threshold = rep("Thr = 0.60", n)), 
+                         data_frame(Profit = p65_rf, Threshold = rep("Thr = 0.65", n)))
+```
+
+Bằng công cụ hình ảnh chúng ta có thể thấy rằng biến đổi lợi nhuận có hai đỉnh nếu trục X chúng ta minh họa ngưỡng tối ưu. Một trong hai đỉnh đó ứng với ngưỡng tối ưu là 0.2 cho RF. Còn đỉnh kia có thể coi là một "cực đại địa phương" ứng với ngưỡng là 0.4: 
+
+```{r}
+df_for_comp %>% 
+  ggplot(aes(x = Threshold, y = Profit / 1000, fill = Threshold, color = Threshold)) + 
+  geom_boxplot(alpha = 0.3) + 
+  labs(x = NULL, y = NULL, 
+       title = "Simulated Profit Based Monte Carlo Method by Threshold for Random Forests", 
+       subtitle = "Data Used: German Credit Data")
+```
+
+
+# Key Conclusions
+
+Với những bằng chứng thực nghiệm từ bộ dữ liệu chúng ta có mấy kết luận sau:
+
+1. Luôn có sự đánh đổi giữa các tiêu chí đánh giá mức độ chính xác của mô hình. 
+
+2. Là một tổ chức vì lợi nhuận, ngân hàng nên xây dựng mô hình của mình căn cứ vào mục tiêu này chứ không phải mục tiêu là Accuracy. 
+
+3. Tùy điều kiện và bối cảnh nền kinh tế cũng như chiến lược kinh doanh ngân hàng có thể điều chỉnh ngưỡng của mô hình phân loại cho phù hợp. Chẳng hạn, nếu định hướng là tối thiều hóa nợ xấu và an toàn vốn thì ngưỡng được chọn nên tối đa hóa Sensitivity - tức khả năng phân loại đúng hồ sơ xấu. 
+
+4. Lợi nhuận mô phỏng thu được từ việc sử dụng RF cao hơn so với khi sử dụng Logistic. Nếu chúng ta thực hiện tình chỉnh tham số cho RF thì lợi nhuận tối ưu có thể còn cao hơn nữa. Ngoài RF chúng ta còn có một số ứng viên khác có thể sử dụng cho mô hình phân loại (như Support Vector Machines) nhưng trong phạm vi bài viết này là chưa có thời gian khảo sát. 
+
+5. Trong thực tế thì một case là TN (khách hàng là tốt và mô hình phân loại đúng là tốt) khi cho vay vốn vẫn có một xác suất mất vốn nào đó. Ngược lại, một case là FN (khách hàng là xấu nhưng mô hình phân loại sai thành tốt) khi cho vay vốn thì ngân hàng vẫn có thể có khả năng thu hồi vốn vay dù với xác suất rất thấp. Do vậy, để có ước lượng chính xác hơn về ngưỡng tối ưu người làm mô hình cần tham khảo ý kiến chuyên gia hoặc căn cứ vào dữ liệu lịch sử của ngân hàng về tỉ lệ thu hồi vốn cũng như lãi của cả hai nhóm khách hàng này. 
+
+
+
+
+
+
+
+

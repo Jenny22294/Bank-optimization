@@ -1,0 +1,202 @@
+---
+title: "When You Need Explanation: Decision Tree Algorithms (CART and CHAID)" 
+subtitle: "R for Pleasure"
+author: "Nguyen Chi Dung"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r setup,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Introduction o Decesion Tree Algorithms
+
+Tree based learning algorithms are considered to be one of the best and mostly used supervised learning methods. Tree based methods empower predictive models with high accuracy, stability and ease of interpretation. Unlike linear models, they map non-linear relationships quite well. They are adaptable at solving any kind of problem at hand (classification or regression).
+
+There are two most common Decision Tree Algorithms:
+
+1. **Classification and Regression Tree (CART)**. CART, a recursive partitioning method, builds classification and regression trees for predicting continuous dependent variables (regression) and categorical predictor variables (classification). The classic C&RT algorithm was popularized by Breiman et al. (1984). A general introduction to tree-classifiers, specifically to the QUEST (Quick, Unbiased, Efficient Statistical Trees) algorithm, is also presented in the context of the Classification Trees Analysis facilities, and much of the following discussion presents the same information, in only a slightly different context.
+
+2. **Chi-Square Automation Interaction Detection (CHAID)**. It is one of the oldest tree classification methods originally proposed by Kass (1980). According to Ripley (1996), the CHAID algorithm is a descendent of THAID developed by Morgan and Messenger (1973). CHAID will "build" non-binary trees (trees where more than two branches can attach to a single root or node), based on a relatively simple algorithm that is particularly well suited for the analysis of larger datasets. Also, because the CHAID algorithm will often effectively yield many multi-way frequency tables (when classifying a categorical response variable with many categories, based on categorical predictors with many classes), it has been particularly popular in marketing research, in the context of market segmentation studies. It is reserved for the investigation of discrete and qualitative independent and dependent variables.
+
+Both CHAID and CART techniques will construct trees, where each (non-terminal) node identifies a split condition, to yield optimum prediction (of continuous dependent or response variables) or classification (for categorical dependent or response variables). Hence, both types of algorithms can be applied to analyze regression-type problems or classification-type.
+
+# Pros and Cons of Decision Trees
+
+Every algorithm has advantages and disadvantages, below are the important pros and cons which one should know.
+
+**Advantages:**
+
+1. *Easy to Understand*. Decision tree output is very easy to understand even for people from non-analytical background. It does not require any statistical knowledge to read and interpret them. Its graphical representation is very intuitive and users can easily relate their hypothesis.
+
+2. *Useful in Data exploration*. Decision tree is one of the fastest way to identify most significant variables and relation between two or more variables. With the help of decision trees, we can create new variables / features that has better power to predict target variable.  It can also be used in data exploration stage. For example, we are working on a problem where we have information available in hundreds of variables, there decision tree will help to identify most significant variable.
+
+3. *Less data cleaning required*. It requires less data cleaning compared to some other modeling techniques. It is not influenced by outliers and missing values to a fair degree.
+
+4. *Data type is not a constraint*. It can handle both numerical and categorical variables.
+
+5. *Non Parametric Method*. Decision tree is considered to be a non-parametric method. This means that decision trees have no assumptions about the space distribution and the classifier structure.
+ 
+
+**Disadvantages:**
+
+1. *Over fitting*. Over fitting is one of the most practical difficulty for decision tree models. This problem gets solved by setting constraints on model parameters and pruning (discussed in detailed below).
+
+2. *Not fit for continuous variables*. While working with continuous numerical variables, decision tree looses information when it categorizes variables in different categories.
+
+
+# Applications of Decision Tree Algorithms
+
+Following are the common areas for applying decision trees:
+
+1. **Direct Marketing**. While the marketing of products and services, business should track products and services offered by the competitors as it identifies the best combination of products and marketing channels that target specific sets of consumers.
+
+2. **Customer Retention**. Decision trees helps organizations keep their valuable customers and get new ones by providing good quality products, discounts, and gift vouchers. These can also analyze buying behaviors of the customers and know their satisfaction levels.
+
+3. **Fraud Detection**. Fraud is a major problem for many industries. Using classification tree, a business can detect frauds beforehand and can drop fraudulent customers.
+
+4. **Diagnosis of Medical Problems**. Classification trees identifies patients who are at risk of suffering from serious diseases such as cancer and diabetes.
+
+5. **Credit Scoring / Classification**. Decision Trees can be used for detecting potential defaulters in process of accepting / rejecting credit application by banks and financial institutions. 
+
+
+A modern data scientist using R has access to an almost bewildering number of tools, libraries and algorithms to analyze the data. In my next two sections I am going to focus on an in depth visit with CART bacause this algorithm accept both categorical and numeric predictors. 
+
+Data used in this post can be download from: http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv. 
+
+# Perform CART 
+
+This section presents R codes for training and evaluating 3 approaches to CART algorithm by using **caret** package: 
+
+```{r}
+#------------------------------------
+# Perform some data pre-processing
+#------------------------------------
+
+# Clear workspace: 
+rm(list = ls())
+
+# Load some packages: 
+library(tidyverse)
+library(magrittr)
+
+# Import data: 
+hmeq <- read.csv("http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv")
+
+# Function replaces NA by mean: 
+replace_by_mean <- function(x) {
+  x[is.na(x)] <- mean(x, na.rm = TRUE)
+  return(x)
+}
+
+# A function imputes NA observations for categorical variables: 
+
+replace_na_categorical <- function(x) {
+  x %>% 
+    table() %>% 
+    as.data.frame() %>% 
+    arrange(-Freq) ->> my_df
+  
+  n_obs <- sum(my_df$Freq)
+  pop <- my_df$. %>% as.character()
+  set.seed(29)
+  x[is.na(x)] <- sample(pop, sum(is.na(x)), replace = TRUE, prob = my_df$Freq)
+  return(x)
+}
+
+# Use the two functions: 
+df <- hmeq %>% 
+  mutate_if(is.factor, as.character) %>% 
+  mutate(REASON = case_when(REASON == "" ~ NA_character_, TRUE ~ REASON), 
+         JOB = case_when(JOB == "" ~ NA_character_, TRUE ~ JOB)) %>%
+  mutate_if(is_character, as.factor) %>% 
+  mutate_if(is.numeric, replace_by_mean) %>% 
+  mutate_if(is.factor, replace_na_categorical)
+
+
+# Convert BAD to factor and scale 0 -1 data set: 
+df_for_ml <- df %>% 
+  mutate(BAD = case_when(BAD == 1 ~ "Bad", TRUE ~ "Good") %>% as.factor()) %>% 
+  mutate_if(is.numeric, function(x) {(x - min(x)) / (max(x) - min(x))})
+
+# Split data: 
+library(caret)
+set.seed(1)
+id <- createDataPartition(y = df_for_ml$BAD, p = 0.7, list = FALSE)
+df_train_ml <- df_for_ml[id, ]
+df_test_ml <- df_for_ml[-id, ]
+
+# Set conditions for training model and cross-validation: 
+
+set.seed(1)
+number <- 3
+repeats <- 5
+control <- trainControl(method = "repeatedcv", 
+                        number = number , 
+                        repeats = repeats, 
+                        classProbs = TRUE, 
+                        summaryFunction = multiClassSummary, 
+                        allowParallel = TRUE)
+
+
+#---------------------------
+#    Train 3 CART models
+#---------------------------
+
+# List 3 CART models that we want to train: 
+cart_models <- c("rpart", "rpart2", "rpart1SE")
+
+# Train models: 
+lapply(cart_models, function(model) {train(BAD ~., 
+                                           data = df_train_ml,
+                                           method = model,
+                                           trControl = control,
+                                           tuneLength = 10)}) -> cart_list_models
+
+# Results based on test data by 4 CART models: 
+
+lapply(cart_list_models, 
+       function(model) {confusionMatrix(predict(model, df_test_ml), 
+                                        df_test_ml$BAD, 
+                                        positive = "Bad")})
+
+# A function for ploting CART decision nodes: 
+library(rattle)
+plot_decision_tree <- function(x) {
+  fancyRpartPlot(cart_list_models[[x]]$finalModel, palettes = "RdPu", sub = "", type = 1)
+  }
+
+# For the first CART model: 
+plot_decision_tree(1)
+
+# Function calculates AUC: 
+
+library(pROC) 
+
+auc_for_model <- function(model) {
+  prob <- predict(model, df_test_ml, type = "prob") %>% pull(Bad)
+  return(roc(df_test_ml$BAD, prob))
+}
+
+
+# Compare AUC among 3 CART models: 
+lapply(cart_list_models, auc_for_model) -> auc_lists
+lapply(1:3, function(x) {auc_lists[[x]]$auc})
+
+```
+
+# Turning Parameters for CART
+
+R Codes for turning parameters and evaluating CART model will be presented in next post. 
+
+
+
+
