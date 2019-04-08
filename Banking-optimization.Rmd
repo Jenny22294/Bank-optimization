@@ -1,0 +1,672 @@
+---
+title: "Profit Maximization for banks"
+author: "Mai Thi Nguyen"
+date: "30 November 2018"
+output:
+  html_document: 
+    code_download: true
+    # code_folding: hide
+    highlight: pygments
+    # number_sections: yes
+    theme: "flatly"
+    toc: TRUE
+    toc_float: TRUE
+---
+
+
+# Artificial intelligence and machine learning in financial services
+
+Credit rating plays an important role in profit optimization and sustainable development of banks in particular as well as other financial institutions. Now, the Machine Learning approach has proven to be superior in terms of accuracy as well as reliability compared to some traditional classification models. The events of the financial crisis led to the collapse of a series of financial institutions in general and banks, in particular, have awakened these organizations to more emphasis on the role of credit appraisals in their operations. Most of the banks’ profits come from credit and loan activities. Credit granting is one of the activities that generate a large proportion of revenue and profit for the bank but also implies a lot of risks [Zakrzewska, 2007]. The main risk of a bank is the clients are not able to repay the loans they have granted. On the other hand, the decision whether or not to provide a loan to the client often depends on the qualifications and experience of the credit assessor [Thomas, 2000].
+
+In addition, the basis for granting credit to a customer is based on a number of criteria that some of them are very difficult to measure, or difficult to measure accurately. For example, the 5 standard criteria for credit granting is based on bank assessments of status, capacity, capital, collateral, and borrower’s conditions [Abrahams & Zhang, 2008]. Clearly, some criteria, such as the status and capacity of a borrower, are difficult to assess and may, therefore, lead to errors in lending decisions. In addition, the credit rating approach based on these 5 standard criteria is costly and there might occur inconsistency on the decision between different credit assessors for the same loan application. Due to these constraints, banks, as well as financial institutions, need to use reliable, objective and low cost crediting and credit ratings to help them decide whether to grant or not. Credits for loan applications [Akhavein, Frame, & White, 2005; Chye, Chin, & Peng, 2004]. Moreover, according to Thomas and CTG (2002)], banks need a credit rating that meets the following requirements: (1) cheap and easy to operate, (2) fast and stable, (3) make consistent decisions based on unbiased information independent of subjective feelings and emotions, and (4) the effectiveness of the credit rating system can be easily check and adjust at any time to timely adjust with changes in policies or conditions of the economy.
+
+For credit classification, the traditional approach is based on pure statistical methods such as multivariate linear regression [Meyer & Pifer, 1970], discriminant analysis [Altman, 1968, Banasik, Crook, & Thomas, 2003], and logistic regression [Desai, Crook, & Overstreet, 1996; Dimitras, Zanakis, & Zopounidis, 1996; Elliott & Filinkov, 2008; Lee, Chiu, Lu, & Chen, 2002]. However, the requirements of the Basel Committee on Banking Supervision issued in 2004 require banks and financial institutions to use credit classification models which are more reliable in order to improve the efficiency of capital allocation. In order to meet these demands, in recent years, there have been some new models of credit classification based on machine learning and artificial intelligence (AL). Unlike previous approaches, these new methods do not give any strict assumptions as to the need for statistical approaches. Instead, these new approaches attempt to exploit and provide the knowledge, the output information based only on inputs that are observations, information from the past. With the credit classification problem, some machine learning models such as Artificial Neural Network (ANN). Support Vector Machines (SVMs), K Nearest Neighbors(KNN) , Random Forest (RF), Decision Tree (DT), has proved to be superior in terms of accuracy as well as reliability compared to some traditional classification models [Chi et al., 2004, Huang et al., & Wang, 2007; Ince & Aktan, 2009; Martens et al. ., 2010].
+
+# Methodology
+The cost of misclassifying a bad record into a good record is much higher than misclassifying a good record into bad records irrespective of what classification model to use. Rather than using Accuracy as the main criterion for selecting and evaluating models, another better way is to use the “profit criterion”, as known as the economic consequences of using the model, as the selection criterion in this article. Specifically, this approach is described in detail as below:
+
+**First** , using 4 Machine Learning models/approaches for the problem of classification. For each of the classification thresholds examine the variability of the three criteria for evaluating the quality of the classification model:
+
+- Bad-Bad Prediction Rate,
+
+- Good - Good Prediction Rate,
+
+- Accuracy Rate (Accuracy Rate).
+
+**Next**, assessing the quality of classification of each approach to the two groups of loan applications (bad and good groups) as well as the general accuracy level of classification models when the threshold changes:
+
+- Use the Monte Carlo simulation method (1000 times).
+
+- Interest rate (After deducting the costs like the staff., etc.) is 5% p.a.
+
+- Distribution of the loan amount (for loan approval records based on bank lending history data).
+
+# The dataset
+
+The actual dataset `hmeq.csv` from “CREDIT RISK ANALYTICS MEASUREMENT TECHNIQUES, APPLICATIONS, and EXAMPLES in SAS” are been using in this article. This dataset can be downloaded directly from the link: http://www.creditriskanalytics.net/datasets-private.html
+
+The data set HMEQ reports characteristics and delinquency information for 5,960 home equity loans. A home equity loan is a loan where the obligor uses the equity of his or her home as the underlying collateral. The data set has the following characteristics:
+
+- BAD: 1 = applicant defaulted on loan or seriously delinquent; 0 = applicant paid loan
+- LOAN: Amount of the loan request
+- MORTDUE: Amount due on existing mortgage
+- VALUE: Value of current property
+- REASON: DebtCon = debt consolidation; HomeImp = home improvement
+- JOB: Occupational categories
+- YOJ: Years at present job
+- DEROG: Number of major derogatory reports
+- DELINQ: Number of delinquent credit lines
+- CLAGE: Age of oldest credit line in months
+- NINQ: Number of recent credit inquiries
+- CLNO: Number of credit lines
+- DEBTINC: Debt-to-income ratio
+
+# Modelling
+Here are the R codes and the experimental results obtained from the hmeq.csv dataset:
+
+## Pre-processing data
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Loading data
+
+
+library(tidyverse)
+library(magrittr)
+hmeq <- read.csv("http://www.creditriskanalytics.net/uploads/1/9/5/1/19511601/hmeq.csv", sep = ",", header = TRUE)
+head(hmeq)
+
+```
+ 
+ 
+
+## Some data processing functions for filling and re-labeling missing data
+
+```{r}
+## 1
+replace_na_mean <- function(x){
+  mean <- mean(x, na.rm = TRUE)
+  x[is.na(x)] <- mean
+  return(x)
+}
+
+
+
+## 2
+name_job <- function(x){
+  x %<>% as.character()
+  ELSE <- TRUE
+  job_name <- c("Mgr", "Office", "Other", "ProfExe", "Sales", "Self")
+  case_when(!x %in% job_name ~ "Other", 
+            ELSE ~ x) 
+
+} 
+
+
+
+## 3
+name_reason <- function(x){
+  ELSE <- TRUE
+  x %<>% as.character()
+  case_when(!x  %in%  c("DebtCon", "HomeImp") ~ "Unknown",
+            ELSE ~ x)
+    
+}
+
+
+
+## 4
+label_rename <- function(x){
+  case_when(x==1 ~ "BAD",
+            x==0 ~ "GOOD")
+}
+
+
+
+
+## 5
+my_scale01 <- function(x){
+  (x-min(x))/(max(x) - min(x))
+} ## Rescaled the data/ normalization
+# Applied these functions
+
+
+
+## Final data for slitting 
+df <- hmeq %>% 
+  mutate_if(is.numeric, replace_na_mean) %>% 
+   mutate_at("REASON", name_reason) %>% 
+  mutate_at("JOB", name_job) %>% 
+  mutate(BAD = label_rename(BAD)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  mutate_if(is.numeric, my_scale01)
+
+
+head(df)
+```
+
+## Train and test datasets
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# Prepare train and test datasets 
+library(caret)
+set.seed(1)
+id <- createDataPartition(y = df$BAD, p = 0.5, list = FALSE)
+train <- df[id,]
+test <- df[id,]
+
+
+
+
+# Set up parameterization and cross-validation:
+set.seed(1)
+trainControl <- trainControl(method = "repeatedcv",
+                             number = 5,
+                             repeats = 5,
+                             classProbs = TRUE,
+                             allowParallel = TRUE,
+                             summaryFunction = multiClassSummary) 
+
+
+```
+
+
+## Parallel computing
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+# Set up parallel computing mode
+
+library(doParallel)
+n_cores <- detectCores()
+
+registerDoParallel(cores = n_cores - 1)
+# Write the average calculation functions for 
+# the classification criteria of the model 
+# with the selection of 1000 observation patterns from testing data 100 times.
+
+
+```
+
+
+## Functional programming setup for evaluation
+
+```{r}
+
+eval_fun1 <- function(threshold, model_selected){
+  my_df <- data.frame()
+  for (i in 1:100){
+    set.seed(1) ## set.seed after calling my_df to make the samples unduplicated
+    
+    id <- createDataPartition(y = test$BAD, p = 1000/nrow(test), list = FALSE)
+   
+     test_df <- test[id,]
+    
+     predict <- predict(model_selected, test_df, type = "prob") %>%
+      pull(BAD)
+    
+     predict <- case_when(predict >= threshold ~ "BAD",
+                          predict < threshold ~ "GOOD")
+     
+     cm <- confusionMatrix(test_df$BAD, predict %>%  as.factor())
+     ## the confusion matrix is in 2 by 2
+     
+     bg_gg <- cm$table %>% 
+       as.vector() %>% 
+       matrix(ncol = 4) %>% 
+       as.data.frame()
+     # convert it into matrix of 1 by 4
+     
+    names(bg_gg) <- c("BB", "GB", "BG", "GG")
+    
+    result <- c(cm$overall, cm$byClass)
+    names <- result %>% as.data.frame() %>% row.names()
+    
+    result %>% 
+      as.vector() %>% 
+      matrix(ncol = 18) %>% 
+      as.data.frame() -> all_df 
+    
+    names(all_df) <- names
+    all_df <- bind_cols(all_df, bg_gg)
+    my_df <- bind_rows(my_df, all_df)
+     }
+  return(my_df)
+}
+## Write a function calculating the classification 
+# of the model based on a pre-selected threshold range:
+
+my_results_from_thres_range <- function(low_thres, up_thres, by, model_selected) {
+  my_range <- seq(low_thres, up_thres, by = by)
+  n <- length(my_range)
+  all_df <- data.frame()
+  
+  for (i in 1:n) {
+    df <- eval_fun1(my_range[i], model_selected = model_selected)
+    df %<>% mutate(Threshold = paste("T", my_range[i]))
+    all_df <- bind_rows(all_df, df)
+  }
+  return(all_df)
+  
+}
+
+```
+
+
+## Train a variety of Machine Learning models
+
+
+### Random Forest
+
+```{r}
+set.seed(1)
+my_rf <- train(BAD ~.,
+               data = train,
+               method = "rf",
+               metric = "AUC", 
+               trControl = trainControl,
+               tuneLength = 5
+               
+               )
+               
+```
+
+
+### Support Vector Machine
+
+```{r}
+set.seed(1)
+my_svm <- train(BAD ~.,
+                data = train,
+                method = "svmRadial",
+                metric = "AUC",
+                trControl = trainControl,
+                tuneLength = 5)
+
+```
+
+
+### Gradient Boosting Machine
+
+```{r}
+set.seed(1)
+my_gbm <- train(BAD ~.,
+                data = train,
+                method = "gbm",
+                metric = "AUC",
+                trControl = trainControl,
+                tuneLength = 5)
+
+```
+
+
+### Boosted Classification Trees - ADA Boost
+
+```{r}
+set.seed(1)
+my_ada <- train(BAD ~.,
+                data = train,
+                method = "ada",
+                metric = "AUC",
+                trControl = trainControl,
+                tuneLength = 5)  
+```
+
+
+
+## Results for those models after testing 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Getting results fro the thresholds from 0.1 - 0.8
+
+my_results_from_thres_range(0.1, 0.8, 0.1, my_rf) ->> rf_results
+
+my_results_from_thres_range(0.1, 0.8, 0.1, my_svm) ->> svm_results
+
+my_results_from_thres_range(0.1, 0.8, 0.1, my_gbm) ->> gbm_results
+
+my_results_from_thres_range(0.1, 0.8, 0.1, my_ada) ->> ada_results
+
+
+
+
+# Summary of results
+
+total_df_results <- bind_rows(rf_results %>% mutate(Model = "RF"), 
+                              svm_results %>% mutate(Model = "SVM"), 
+                              gbm_results %>% mutate(Model = "GBM"), 
+                              ada_results %>% mutate(Model = "ADA") )
+
+
+names(total_df_results) <- names(total_df_results) %>% str_replace_all(" ", "")
+
+
+## Median calculus
+
+compared_results <- total_df_results %>% 
+  group_by(Threshold, Model) %>% 
+  summarise_each(funs(median), Accuracy, NegPredValue, PosPredValue) %>% 
+  ungroup() 
+
+head(compared_results)
+
+```
+
+
+## Write the threshold extraction function: 
+
+```{r}
+get_number <- function(x) {
+  x %>% 
+    str_replace_all("[^0-9]", "") %>% 
+    as.numeric() ->> y
+  return(y*0.1)
+}
+
+```
+
+
+## Visualization
+
+### Good - Good Prediction
+
+```{r}
+theme_set(theme_minimal())
+
+compared_results  %>%  
+  mutate(Threshold = get_number(Threshold)) %>% 
+  ggplot(aes(Threshold, NegPredValue, color = Model)) +
+  geom_line()+
+  geom_point()+
+  scale_y_continuous(labels = scales::percent)+
+  scale_x_continuous(breaks = seq(0.1, 0.8, 0.1))+
+  labs(y= "Good - Good Predicton Rate",
+       title = "Figure 1 : Good - Good prediction rate by threshold"
+       )
+
+
+```
+
+### Bad - Bad Prediction
+
+```{r}
+compared_results  %>%  
+  mutate(Threshold = get_number(Threshold)) %>% 
+  ggplot(aes(Threshold, PosPredValue, color = Model)) +
+  geom_line()+
+  geom_point()+
+  scale_y_continuous(labels = scales::percent)+
+  scale_x_continuous(breaks = seq(0.1, 0.8, 0.1))+
+  labs(y= "Bad - Bad Predicton Rate",
+       title = " Figure 2 : Bad - Bad prediction rate by threshold"
+  )
+
+```
+
+### Total Accuracy Rate
+
+```{r}
+compared_results  %>%  
+  mutate(Threshold = get_number(Threshold)) %>% 
+  ggplot(aes(Threshold, Accuracy, color = Model)) +
+  geom_line()+
+  geom_point()+
+  scale_y_continuous(labels = scales::percent)+
+  scale_x_continuous(breaks = seq(0.1, 0.8, 0.1))+
+  labs(y= " Accuracy Rate",
+       title = "Figure 3 : Accuracy rate by threshold"
+  )
+
+```
+
+Because The cost of misclassifying a bad record into a good record is much higher than misclassifying a good record into bad records irrespective of what classification model are used. Therefore, accuarcy is not always the best criteria to choose. Threshold = 0.5 is not appropriate in all situations. That means, changing threshold for a specific model is really life-changing. In this case, I go for the threshold in the range of (0.2,0.4).
+
+## New approach - Estimation of profit is based on simulation when threshold changes
+
+### Getting GG - BG predictions
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Random Forest
+
+rf_results %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(sum), GG, BG) ->> gg_bg_RF_Model
+
+
+# Support Vector Machine
+
+svm_results %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(sum), GG, BG) ->> gg_bg_SVM_Model
+
+  
+# Gradient Boosting Machine
+
+gbm_results %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(sum), GG, BG) ->> gg_bg_gbm_Model
+
+
+# Boosted Classification Trees - ADA Boost
+
+ada_results %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(sum), GG, BG) ->> gg_bg_ADA_Model
+
+
+
+## Write the profit simulation function with 1000 simulations:
+
+
+profit_simu <- function(data_from_model, row, rate) {
+  prof <- c()
+  for (j in 1:1000) {
+    
+    good_loan <- data_from_model[row, 2] %>% as.numeric()
+    bad_loan <- data_from_model[row, 3] %>% as.numeric()
+    
+    amount_of_good_loan <- sample(hmeq$LOAN, good_loan, replace = TRUE)
+    amount_of_bad_loan <- sample(hmeq$LOAN, bad_loan, replace = TRUE)
+    
+    return <- sum(rate*amount_of_good_loan) - sum(amount_of_bad_loan)
+    prof <- c(prof, return)
+  }
+  
+  data.frame(Profit = prof, Threshold = get_number(data_from_model[row, 1] %>% as.vector())) %>% 
+    return()
+  
+}
+
+```
+
+### Profit simulation 
+
+```{r}
+# Profit Simulation by Random Forest
+
+rf_profit <- bind_rows(profit_simu(gg_bg_RF_Model, 1, 0.05), 
+                       profit_simu(gg_bg_RF_Model, 2, 0.05), 
+                       profit_simu(gg_bg_RF_Model, 3, 0.05), 
+                       profit_simu(gg_bg_RF_Model, 4, 0.05), 
+                       profit_simu(gg_bg_RF_Model, 5, 0.05), 
+                       profit_simu(gg_bg_RF_Model, 6, 0.05), 
+                       profit_simu(gg_bg_RF_Model, 7, 0.05), 
+                       profit_simu(gg_bg_RF_Model, 8, 0.05 ))
+
+
+# Profit Simulation by Support Vector Machine 
+
+svm_profit <- bind_rows(profit_simu(gg_bg_SVM_Model, 1, 0.05), 
+                        profit_simu(gg_bg_SVM_Model, 2, 0.05), 
+                        profit_simu(gg_bg_SVM_Model, 3, 0.05), 
+                        profit_simu(gg_bg_SVM_Model, 4, 0.05), 
+                        profit_simu(gg_bg_SVM_Model, 5, 0.05), 
+                        profit_simu(gg_bg_SVM_Model, 6, 0.05), 
+                        profit_simu(gg_bg_SVM_Model, 7, 0.05), 
+                        profit_simu(gg_bg_SVM_Model, 8, 0.05))
+
+
+# Profit Simulation by Gradient Boosting Machine
+
+gbm_profit <- bind_rows(profit_simu(gg_bg_gbm_Model, 1, 0.05), 
+                        profit_simu(gg_bg_gbm_Model, 2, 0.05), 
+                        profit_simu(gg_bg_gbm_Model, 3, 0.05), 
+                        profit_simu(gg_bg_gbm_Model, 4, 0.05), 
+                        profit_simu(gg_bg_gbm_Model, 5, 0.05), 
+                        profit_simu(gg_bg_gbm_Model, 6, 0.05), 
+                        profit_simu(gg_bg_gbm_Model, 7, 0.05), 
+                        profit_simu(gg_bg_gbm_Model, 8, 0.05))
+
+
+# Profit Simulation by ADA
+
+ada_profit <- bind_rows(profit_simu(gg_bg_ADA_Model, 1, 0.05), 
+                        profit_simu(gg_bg_ADA_Model, 2, 0.05), 
+                        profit_simu(gg_bg_ADA_Model, 3, 0.05), 
+                        profit_simu(gg_bg_ADA_Model, 4, 0.05), 
+                        profit_simu(gg_bg_ADA_Model, 5, 0.05), 
+                        profit_simu(gg_bg_ADA_Model, 6, 0.05), 
+                        profit_simu(gg_bg_ADA_Model, 7, 0.05), 
+                        profit_simu(gg_bg_ADA_Model, 8, 0.05))
+
+  
+```
+
+## Profits comparison
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+profit_compare_models <- bind_rows(rf_profit %>% mutate(Model = "RF"), 
+                                   svm_profit %>% mutate(Model = "SVM"), 
+                                   gbm_profit %>% mutate(Model = "GBM"), 
+                                   ada_profit %>% mutate(Model = "ADA"))
+# Visualization
+
+profit_compare_models %>% 
+  mutate(Profit = Profit/1000000) %>% 
+  group_by(Threshold, Model) %>% 
+  summarise_each(funs(mean), Profit) %>% 
+  ggplot(aes(Threshold, Profit, color = Model)) +
+  geom_line()+
+  geom_point()+
+  scale_x_continuous(breaks = seq(0.1, 0.8, 0.1)) +
+  labs( x= NULL, y = NULL, 
+        title = "Figure 4: Simulated Profits from 4 Machine Learning Models\nbased on Monte Carlo Simulation by Threshold" )
+
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Summary
+
+profit_compare_models %>% 
+  filter(Threshold == 0.2) %>% 
+  group_by(Model) %>% 
+  summarise_each(funs(mean, median, min, max, sd), Profit) %>% 
+  arrange(-mean) %>% 
+  knitr::kable()
+
+```
+
+
+# Can refining parameters for the Random Forest improve profitability for banks?
+
+## RF performance when mtry changes
+
+```{r}
+
+## Set refining grid:
+
+my_grid1 <- expand.grid(mtry = 1:10)
+
+
+# # RF tuned: 
+set.seed(1)
+my_rf_tuned <- train(BAD ~., 
+                      data = train, 
+                      method = "rf", 
+                      metric = "AUC", 
+                      trControl = trainControl, 
+                      tuneGrid = my_grid1)
+
+
+# Write function visualizes some criteria for evaluating the quality of
+# model RF classification when mtry changes:
+
+my_plot <- function(model) {
+  theme_set(theme_minimal())
+  u <- model$results %>% 
+    select(mtry, AUC, Accuracy, Kappa, Sensitivity, Specificity, Precision) %>% 
+    gather(a, b, -mtry) 
+  
+  u %>% 
+    ggplot(aes(mtry, b)) + 
+    geom_line() + 
+    geom_point() + 
+    facet_wrap(~ a, scales = "free") + 
+    labs(x = "Number of mtry", y = NULL, 
+         title = "The Relationship between Model Performance and mtry")
+  
+}
+
+# Visualisaton:
+
+my_rf_tuned %>% 
+  my_plot() + 
+  scale_x_continuous(breaks = seq(1, 10, 1))
+
+```
+
+
+## compare the model without tuning and with tuning
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+my_results_from_thres_range(0.1, 0.8, 0.1, my_rf_tuned) ->> rf_results_tuned
+
+rf_results_tuned %>% 
+  group_by(Threshold) %>% 
+  summarise_each(funs(sum), GG, BG) ->> gg_bg_RF_Model_tuned
+
+
+rf_profit_tuned <- bind_rows(profit_simu(gg_bg_RF_Model_tuned, 1, 0.1), 
+                              profit_simu(gg_bg_RF_Model_tuned, 2, 0.1), 
+                              profit_simu(gg_bg_RF_Model_tuned, 3, 0.1), 
+                              profit_simu(gg_bg_RF_Model_tuned, 4, 0.1), 
+                              profit_simu(gg_bg_RF_Model_tuned, 5, 0.1), 
+                              profit_simu(gg_bg_RF_Model_tuned, 6, 0.1), 
+                              profit_simu(gg_bg_RF_Model_tuned, 7, 0.1), 
+                              profit_simu(gg_bg_RF_Model_tuned, 8, 0.1))
+
+two_rf_model <- bind_rows(profit_compare_models %>% filter(Model == "RF"), 
+                          rf_profit_tuned %>% mutate(Model = "RF tuned"))
+
+two_rf_model %>% 
+  mutate(Profit = Profit / 1000000) %>% 
+  group_by(Threshold, Model) %>% 
+  summarise_each(funs(mean), Profit) %>% 
+  ggplot(aes(Threshold, Profit, color = Model)) + 
+  geom_line() + 
+  geom_point() + 
+  scale_x_continuous(breaks = seq(0.1, 0.8, 0.1)) + 
+  labs(x = NULL, y = NULL, 
+       title = "Figure 5: Simulated Profit from Dafault and tuned Random Forest\nbased on Monte Carlo Simulation by Threshold", 
+       subtitle = "Data Used: http://www.creditriskanalytics.net/datasets-private.html")
+
+```
+
+
+# Results
+
+- The profit margin of the tuned RF model is higher at any threshold point.
+
+- There is always a tradeoff between the accuracy of good records and bad records (Figure 1 and Figure 2).
+
+- At the level of classification that the highest accuracy is, it is the classification threshold that generates non-optimal returns for the bank.
+
+- When the classification threshold increases, the profitability of using the classification model decreases.
+
+- At the default threshold of 0.5 - This is also the default threshold for most commercial software such as SPSS, Stata, and Eviews, the economic consequences (Monte Carlo-based average profitability) of using the classification model are lousy.
+
+- For the purpose of maximizing profit and using RF without tuning, Random Forest should be used, and the usage threshold is 0.2. With tuned RF the best threshold would be 0.4.
+
+
